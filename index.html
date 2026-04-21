@@ -841,8 +841,9 @@
         } catch (e) {}
     }
 
-    async function saveDataFinal(imgData) {
-        try {
+    window.fetchFromFirestore = async function() { // Başına window. ekledik
+    try {
+        const querySnapshot = await window.fbGetDocs(window.fbCollection(window.db, "products"));
             var calc = runCalcSafe('margin'); 
             var editId = document.getElementById('inp_id').value;
 
@@ -1764,13 +1765,16 @@ window.fbSignOut = signOut;
 window.fbOnAuthChanged(auth, (user) => {
   const overlay = document.getElementById('login-overlay');
   if (user) {
+    console.log("Giriş başarılı, veriler yükleniyor...");
     overlay.style.display = 'none';
-    // GİRİŞ YAPILDIĞINDA VERİLERİ ÇEKMEYİ TETİKLE
-    if (typeof fetchFromFirestore === "function") {
-        fetchFromFirestore(); 
+    
+    // Verileri çekme fonksiyonunu sadece giriş başarılıysa burada çağırıyoruz
+    if (typeof window.fetchFromFirestore === "function") {
+        window.fetchFromFirestore();
     }
   } else {
     overlay.style.display = 'flex';
+    console.log("Kullanıcı oturumu kapalı.");
   }
 });
   
