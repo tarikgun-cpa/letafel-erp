@@ -1764,10 +1764,13 @@ window.fbSignOut = signOut;
 window.fbOnAuthChanged(auth, (user) => {
   const overlay = document.getElementById('login-overlay');
   if (user) {
-    overlay.style.display = 'none'; // Giriş yapılmışsa ekranı kaldır
-    console.log("Hoş geldin:", user.email);
+    overlay.style.display = 'none';
+    // GİRİŞ YAPILDIĞINDA VERİLERİ ÇEKMEYİ TETİKLE
+    if (typeof fetchFromFirestore === "function") {
+        fetchFromFirestore(); 
+    }
   } else {
-    overlay.style.display = 'flex'; // Giriş yoksa ekranı göster
+    overlay.style.display = 'flex';
   }
 });
   
