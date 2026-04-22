@@ -351,13 +351,16 @@
             
             <div class="col-md-8">
                 <div class="card-custom h-100">
-                    <div class="card-head bg-dark text-white d-flex justify-content-between align-items-center">
-                        <span><i class="fas fa-box-open me-2"></i> Sepet İçeriği ve Maliyet Özeti</span>
-                        <div>
-                            <button class="btn btn-sm btn-success fw-bold me-2" onclick="saveCurrentBasket()"><i class="fas fa-save"></i> Paketi Kaydet</button>
-                            <button class="btn btn-sm btn-outline-light" onclick="clearBasket()"><i class="fas fa-trash"></i> Temizle</button>
-                        </div>
-                    </div>
+                    <<div class="card-head bg-dark text-white d-flex justify-content-between align-items-center">
+    <span><i class="fas fa-box-open me-2"></i> Sepet İçeriği ve Maliyet Özeti</span>
+    <div class="d-flex gap-1 flex-wrap">
+        <button class="btn btn-sm btn-warning fw-bold text-dark" onclick="exportBasketPDF('customer')" title="Müşteriye Gönderilecek Fiyatsız PDF"><i class="fas fa-file-pdf"></i> Teklif PDF</button>
+        <button class="btn btn-sm btn-info fw-bold text-dark me-2" onclick="exportBasketPDF('internal')" title="Maliyetleri İçeren İç Rapor"><i class="fas fa-file-pdf"></i> Maliyet PDF</button>
+        
+        <button class="btn btn-sm btn-success fw-bold" onclick="saveCurrentBasket()"><i class="fas fa-save"></i> Kaydet</button>
+        <button class="btn btn-sm btn-outline-light" onclick="clearBasket()"><i class="fas fa-trash"></i></button>
+    </div>
+</div>
                     <div class="card-body p-0">
                         <div class="table-responsive" style="max-height: 250px; overflow-y:auto;">
                             <table class="table table-hover align-middle mb-0">
@@ -1594,6 +1597,103 @@
             doc.save("Letafel_PDF_Raporu.pdf");
         } catch (error) { alert("PDF oluşturulurken bir hata meydana geldi.\nHata Detayı: " + error.message); }
     }
+
+    function exportBasketPDF(mode) {
+    try {
+        if(basketList.length === 0) { alert("PDF yazdırmak için sepete ürün eklemelisiniz."); return; }
+
+        var jsPDFObj = null;
+        if (window.jspdf && window.jspdf.jsPDF) jsPDFObj = window.jspdf.jsPDF; else if (typeof jsPDF !== 'undefined') jsPDFObj = jsPDF; else if (window.jsPDF) jsPDFObj = window.jsPDF;
+        if (!jsPDFObj) { alert("PDF Kütüphanesi yüklenemedi. Lütfen sayfayı yenileyin."); return; }
+        
+        var doc = new jsPDFObj();
+        var basketName = document.getElementById('basket_name').value || "İsimsiz_Paket";
+        
+        function toEn(str) { 
+            if(!str) return ''; 
+            var map = {'ç':'c','ğ':'g','ı':'i','ö':'o','ş':'s','ü':'u','Ç':'C','Ğ':'G','İ':'I','Ö':'O','Ş':'S','Ü':'U'}; 
+            return str.replace(/[çğıöşüÇĞİÖŞÜ]/g, function(m) { return map[m]; }); 
+        }
+
+        doc.setFontSize(16);
+        if(mode === 'customer') {
+            doc.setTextColor(197, 160, 89); // Gold
+            doc.text("LETAFEL KOZMETIK - OZEL URUN TEKLIFI", 14, 15);
+        } else {
+            doc.setTextColor(10, 61, 50); // Koyu Yeşil
+            doc.text("LETAFEL - SEPET IC MALIYET RAPORU", 14, 15);
+        }
+        
+        doc.setFontSize(12);
+        doc.setTextColor(100, 100, 100);
+        doc.text("Paket / Sepet Adi: " + toEn(basketName), 14, 23);
+
+        var tBody = [];
+        var headParams = [];
+        
+        if(mode === 'customer') {
+            headParams = [['Gorsel', 'Urun Adi', 'Paket İci Adet']];
+            basketList.forEach(function(item) {
+                tBody.push(["", toEn(item.p.name), item.qty + " Adet"]);
+            });
+        } else {
+            headParams = [['Gorsel', 'Urun Adi', 'Adet', 'Birim Alis', 'Toplam Maliyet']];
+            basketList.forEach(function(item) {
+                tBody.push(["", toEn(item.p.name), item.qty + " Adet", parseFloat(item.p.buy).toFixed(2) + " TL", (item.p.buy * item.qty).toFixed(2) + " TL"]);
+            });
+        }
+
+        doc.autoTable({
+            startY: 30,
+            head: headParams,
+            body: tBody,
+            headStyles: { fillColor: mode === 'customer' ? [197, 160, 89] : [125, 154, 131] },
+            styles: { minCellHeight: 25, valign: 'middle' },
+            columnStyles: { 0: { cellWidth: 25 } },
+            didDrawCell: function(data) {
+                if (data.column.index === 0 && data.cell.section === 'body') {
+                    var pData = basketList[data.row.index].p;
+                    if (pData && pData.img && (pData.img.indexOf('data:image') === 0 || pData.img.indexOf('http') === 0)) {
+                        try { 
+                            var format = pData.img.indexOf('image/png') !== -1 ? 'PNG' : 'JPEG'; 
+                            doc.addImage(pData.img, format, data.cell.x + 2, data.cell.y + 2, 21, 21); 
+                        } catch(e) {}
+                    }
+                }
+            }
+        });
+
+        var finalY = doc.lastAutoTable.finalY + 15;
+        doc.setFontSize(11);
+        doc.setTextColor(0, 0, 0);
+        
+        var sellEcom = document.getElementById('basket_sell_ecom').value || 0;
+        var sellStore = document.getElementById('basket_sell_store').value || 0;
+
+        if(mode === 'customer') {
+            doc.text("Tavsiye Edilen E-Ticaret Fiyati: " + parseFloat(sellEcom).toFixed(2) + " TL", 14, finalY);
+            doc.text("Magaza / Elden Satis Fiyati: " + parseFloat(sellStore).toFixed(2) + " TL", 14, finalY + 7);
+            doc.setFontSize(9);
+            doc.setTextColor(150, 150, 150);
+            doc.text("Fiyatlarimiza KDV dahildir. Bu belge bilgilendirme amacli hazirlanmistir.", 14, finalY + 20);
+        } else {
+            var buyNoVat = document.getElementById('det_buy_novat').innerText;
+            var commTotal = document.getElementById('det_comm_total').innerText;
+            var netEcom = document.getElementById('basket_net_ecom').innerText.replace('NET KAR: ', '');
+            var netStore = document.getElementById('basket_net_store').innerText.replace('NET KAR: ', '');
+
+            doc.text("Sepet Urunleri Toplam Maliyeti (KDV Haric): " + buyNoVat, 14, finalY);
+            doc.text("E-Ticaret Icin Tahmini Komisyon: " + commTotal, 14, finalY + 7);
+            doc.setTextColor(217, 83, 79);
+            doc.text("E-Ticaret Net Kar: " + netEcom, 14, finalY + 15);
+            doc.setTextColor(92, 184, 92);
+            doc.text("Magaza Satis Net Kar: " + netStore, 14, finalY + 22);
+        }
+
+        var fileName = "Letafel_" + (mode === 'customer' ? "Musteri_Teklifi_" : "Maliyet_Raporu_") + Date.now() + ".pdf";
+        doc.save(fileName);
+    } catch (error) { alert("PDF olusturulurken hata: " + error.message); }
+}
 
     // --- KATALOG (KORUNMUŞTUR) ---
     function createProduct(name, desc, price) {
