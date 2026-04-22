@@ -439,9 +439,8 @@
                 <button class="admin-btn btn-green" onclick="addNewCategory()">+ Yeni Grup (Kategori)</button>
             </div>
             <div>
-                <button class="admin-btn btn-blue" onclick="document.getElementById('importInput').click()">📤 Yükle (JSON)</button>
-                <input type="file" id="importInput" style="display:none" accept=".json" onchange="importFromJson(event)">
-                <button class="admin-btn btn-blue" onclick="exportToJson()">📥 Kaydet (JSON)</button>
+                <button class="admin-btn btn-blue" onclick="openCloudCatalogs()">☁️ Buluttan Yükle</button>
+                <button class="admin-btn btn-blue" onclick="saveCatalogToCloud()">☁️ Buluta Kaydet</button>
                 <button class="admin-btn btn-gold" id="png-btn" onclick="exportToPNG()">📸 FOTOĞRAF OLARAK İNDİR</button>
                 <button class="admin-btn btn-red" onclick="clearAll()">🗑️ Temizle</button>
             </div>
@@ -613,7 +612,21 @@
     </div>
   </div>
 </div>
-
+<div class="modal fade" id="catalogModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-dark text-white">
+        <h5 class="modal-title fw-bold"><i class="fas fa-cloud-download-alt me-2"></i> Buluttaki Kataloglar</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body bg-light p-0">
+          <div class="list-group list-group-flush" id="cloudCatalogList">
+              <div class="p-4 text-center text-muted">Kataloglar aranıyor...</div>
+          </div>
+      </div>
+    </div>
+  </div>
+</div>
 <script>
     // Sistem Değişkenleri
     var DB_NAME = 'letafel_erp_v30';
@@ -1562,40 +1575,282 @@
         } catch(e) {}
     }
 
-    function makePDF() {
+    // --- PDF İÇİN YARDIMCI GÖRSEL DÖNÜŞTÜRÜCÜ ---
+    async function getBase64ImageFromUrl(imageUrl) {
+        if (!imageUrl) return null;
+        if (imageUrl.startsWith('data:image')) return imageUrl;
+        try {
+            let response = await fetch(imageUrl);
+            let blob = await response.blob();
+            return new Promise((resolve, reject) => {
+                let reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        } catch (e) {
+            console.warn("Resim PDF için çekilemedi (CORS veya bağlantı hatası):", e);
+            return null;
+        }
+    }
+
+    // --- 1. DETAYLI LİSTE PDF ÇIKTISI (DÜZELTİLDİ) ---
+    window.makePDF = async function() {
         try {
             if(productList.length === 0) { alert("PDF için ürün eklemelisiniz."); return; }
-            var jsPDFObj = null;
-            if (window.jspdf && window.jspdf.jsPDF) jsPDFObj = window.jspdf.jsPDF; else if (typeof jsPDF !== 'undefined') jsPDFObj = jsPDF; else if (window.jsPDF) jsPDFObj = window.jsPDF;
-            if (!jsPDFObj) { alert("PDF Kütüphanesi yüklenemedi. Lütfen sayfayı yenileyin."); return; }
+            var jsPDFObj = window.jspdf ? window.jspdf.jsPDF : (window.jsPDF || null);
+            if (!jsPDFObj) { alert("PDF Kütüphanesi yüklenemedi."); return; }
+            
+            // Butonu bekletmeye al
+            var btnList = document.querySelectorAll('button');
+            var pdfBtn = Array.from(btnList).find(b => b.innerText.includes('PDF İndir'));
+            if(pdfBtn) { pdfBtn.innerHTML = "⏳ Lütfen Bekleyin..."; pdfBtn.disabled = true; }
+
             var doc = new jsPDFObj({ orientation: 'landscape' });
-            doc.setFontSize(16); doc.text("LETAFEL KOZMETIK URUN VE MALIYET RAPORU", 14, 15);
-            function toEn(str) { if(!str) return ''; var map = {'ç':'c','ğ':'g','ı':'i','ö':'o','ş':'s','ü':'u','Ç':'C','Ğ':'G','İ':'I','Ö':'O','Ş':'S','Ü':'U'}; return str.replace(/[çğıöşüÇĞİÖŞÜ]/g, function(m) { return map[m]; }); }
-            var searchInput = document.getElementById('searchInput'); var filterText = searchInput ? searchInput.value.toLowerCase() : "";
+            
+            // LOGO ÇEKME VE EKLEME
+            var logoSrc = document.getElementById('view_main_logo').src;
+            if(logoSrc && logoSrc.startsWith('data:image')) {
+                doc.addImage(logoSrc, 'PNG', 14, 8, 25, 25);
+            }
+            
+            doc.setFontSize(16); doc.setTextColor(10, 61, 50);
+            doc.text("LETAFEL KOZMETIK URUN VE MALIYET RAPORU", 45, 20);
+            doc.setFontSize(10); doc.setTextColor(100, 100, 100);
+            doc.text("Tarih: " + new Date().toLocaleDateString('tr-TR'), 45, 26);
+
+            function toEn(str) { 
+                if(!str) return ''; 
+                var map = {'ç':'c','ğ':'g','ı':'i','ö':'o','ş':'s','ü':'u','Ç':'C','Ğ':'G','İ':'I','Ö':'O','Ş':'S','Ü':'U'}; 
+                return str.replace(/[çğıöşüÇĞİÖŞÜ]/g, m => map[m]); 
+            }
+            
+            var searchInput = document.getElementById('searchInput'); 
+            var filterText = searchInput ? searchInput.value.toLowerCase() : "";
             var tBody = []; var fList = [];
+            
+            // Filtreleme
             for(var i=0; i<productList.length; i++) {
                 var p = productList[i]; if(!p) continue;
-                var safeName = (p.name || "").toString().toLowerCase(); var safeCat = (p.cat || "").toString().toLowerCase();
-                var safeBar = (p.bar || "").toString().toLowerCase(); var safeManuf = (p.manuf || "").toString().toLowerCase(); var safeWhole = (p.whole || "").toString().toLowerCase();
-                if(filterText && safeName.indexOf(filterText) === -1 && safeCat.indexOf(filterText) === -1 && safeBar.indexOf(filterText) === -1 && safeManuf.indexOf(filterText) === -1 && safeWhole.indexOf(filterText) === -1) continue;
-                fList.push(p); tBody.push(["", toEn(p.name) + "\nBarkod: " + (p.bar||'-'), toEn(p.cat), p.qty + " Adet", parseFloat(p.buy).toFixed(2) + " TL", parseFloat(p.sellEcom||0).toFixed(2) + " TL", parseFloat(p.sellStore||0).toFixed(2) + " TL"]);
+                var safeName = (p.name || "").toString().toLowerCase(); var safeBar = (p.bar || "").toString().toLowerCase();
+                if(filterText && safeName.indexOf(filterText) === -1 && safeBar.indexOf(filterText) === -1) continue;
+                fList.push(p); 
+                tBody.push(["", toEn(p.name) + "\nBarkod: " + (p.bar||'-'), toEn(p.cat), p.qty + " Adet", parseFloat(p.buy).toFixed(2) + " TL", parseFloat(p.sellEcom||0).toFixed(2) + " TL", parseFloat(p.sellStore||0).toFixed(2) + " TL"]);
             }
-            if (tBody.length === 0) { alert("Yazdırılacak veri bulunamadı (Arama filtresini kontrol ediniz)."); return; }
-            if (typeof doc.autoTable !== 'function') { alert("PDF Tablo eklentisi (autoTable) yüklenemedi. Lütfen sayfayı yenileyin."); return; }
+            
+            if (tBody.length === 0) { alert("Yazdırılacak veri bulunamadı."); if(pdfBtn){pdfBtn.innerHTML = "<i class='fas fa-file-pdf'></i> PDF İndir"; pdfBtn.disabled = false;} return; }
+
+            // RESİMLERİ ASENKRON İNDİRME SÜRECİ (ÖNEMLİ)
+            for(let i=0; i<fList.length; i++) {
+                if(fList[i].img) {
+                    fList[i].base64ForPdf = await getBase64ImageFromUrl(fList[i].img);
+                }
+            }
+
             doc.autoTable({
-                startY: 25, head: [['Gorsel', 'Urun Bilgisi', 'Kategori', 'Stok', 'Alis', 'E-Ticaret', 'Magaza']], body: tBody,
+                startY: 35, head: [['Gorsel', 'Urun Bilgisi', 'Kategori', 'Stok', 'Alis', 'E-Ticaret', 'Magaza']], body: tBody,
                 headStyles: { fillColor: [162, 185, 166] }, styles: { minCellHeight: 25, valign: 'middle' }, columnStyles: { 0: { cellWidth: 25 } },
                 didDrawCell: function(data) {
                     if (data.column.index === 0 && data.cell.section === 'body') {
-                        var pData = fList[data.row.index];
-                        if (pData && pData.img && (pData.img.indexOf('data:image') === 0 || pData.img.indexOf('http') === 0)) {
-                            try { var format = pData.img.indexOf('image/png') !== -1 ? 'PNG' : 'JPEG'; doc.addImage(pData.img, format, data.cell.x + 2, data.cell.y + 2, 21, 21); } catch(e) { console.warn("Resim PDF'e eklenemedi:", e); }
+                        var preLoadedImg = fList[data.row.index].base64ForPdf;
+                        if (preLoadedImg) {
+                            try { doc.addImage(preLoadedImg, 'JPEG', data.cell.x + 2, data.cell.y + 2, 21, 21); } catch(e) {}
                         }
                     }
                 }
             });
-            doc.save("Letafel_PDF_Raporu.pdf");
-        } catch (error) { alert("PDF oluşturulurken bir hata meydana geldi.\nHata Detayı: " + error.message); }
+            doc.save("Letafel_Toplu_Rapor.pdf");
+            
+            if(pdfBtn) { pdfBtn.innerHTML = "<i class='fas fa-file-pdf'></i> PDF İndir"; pdfBtn.disabled = false; }
+        } catch (error) { alert("Hata: " + error.message); }
+    }
+
+    // --- 2. PROFESYONEL SEPET/TEKLİF PDF ÇIKTISI ---
+    window.exportBasketPDF = async function(mode) {
+        try {
+            if(basketList.length === 0) { alert("PDF yazdırmak için sepete ürün eklemelisiniz."); return; }
+            var jsPDFObj = window.jspdf ? window.jspdf.jsPDF : (window.jsPDF || null);
+            if (!jsPDFObj) return;
+            var doc = new jsPDFObj();
+            var basketName = document.getElementById('basket_name').value || "Isimsiz_Paket";
+            
+            function toEn(str) { 
+                if(!str) return ''; 
+                var map = {'ç':'c','ğ':'g','ı':'i','ö':'o','ş':'s','ü':'u','Ç':'C','Ğ':'G','İ':'I','Ö':'O','Ş':'S','Ü':'U'}; 
+                return str.replace(/[çğıöşüÇĞİÖŞÜ]/g, m => map[m]); 
+            }
+
+            // PROFESYONEL ÜST TASARIM
+            if(mode === 'customer') {
+                doc.setFillColor(197, 160, 89); // Gold
+                doc.rect(0, 0, 210, 30, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(22);
+                doc.text("OZEL URUN TEKLIFI", 14, 20);
+            } else {
+                doc.setFillColor(10, 61, 50); // Dark Green
+                doc.rect(0, 0, 210, 30, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(22);
+                doc.text("SEPET MALIYET VE ANALIZ RAPORU", 14, 20);
+            }
+
+            // LOGO
+            var logoSrc = document.getElementById('view_main_logo').src;
+            if(logoSrc && logoSrc.startsWith('data:image')) {
+                doc.addImage(logoSrc, 'PNG', 170, 4, 22, 22);
+            }
+
+            doc.setTextColor(50, 50, 50);
+            doc.setFontSize(11);
+            doc.text("Paket / Grup Adi: " + toEn(basketName), 14, 40);
+            doc.text("Tarih: " + new Date().toLocaleDateString('tr-TR'), 14, 46);
+
+            var tBody = []; var headParams = [];
+            if(mode === 'customer') {
+                headParams = [['Gorsel', 'Urun Detayi', 'Paket İci Adet']];
+                basketList.forEach(item => tBody.push(["", toEn(item.p.name) + "\nBarkod: " + (item.p.bar||''), item.qty + " Adet"]));
+            } else {
+                headParams = [['Gorsel', 'Urun Detayi', 'Adet', 'Birim Alis', 'Toplam Maliyet']];
+                basketList.forEach(item => tBody.push(["", toEn(item.p.name), item.qty + " Adet", parseFloat(item.p.buy).toFixed(2) + " TL", (item.p.buy * item.qty).toFixed(2) + " TL"]));
+            }
+
+            // Resimleri önceden yükle
+            for(let i=0; i<basketList.length; i++) {
+                if(basketList[i].p.img) {
+                    basketList[i].base64ForPdf = await getBase64ImageFromUrl(basketList[i].p.img);
+                }
+            }
+
+            doc.autoTable({
+                startY: 52, head: headParams, body: tBody,
+                headStyles: { fillColor: mode === 'customer' ? [197, 160, 89] : [10, 61, 50] },
+                styles: { minCellHeight: 25, valign: 'middle' }, columnStyles: { 0: { cellWidth: 25 } },
+                didDrawCell: function(data) {
+                    if (data.column.index === 0 && data.cell.section === 'body') {
+                        var preLoadedImg = basketList[data.row.index].base64ForPdf;
+                        if (preLoadedImg) {
+                            try { doc.addImage(preLoadedImg, 'JPEG', data.cell.x + 2, data.cell.y + 2, 21, 21); } catch(e) {}
+                        }
+                    }
+                }
+            });
+
+            var finalY = doc.lastAutoTable.finalY + 15;
+            
+            // ALT ÖZET VE TASARIM
+            doc.setDrawColor(200, 200, 200);
+            doc.line(14, finalY - 5, 196, finalY - 5);
+            doc.setFontSize(12);
+
+            var sellEcom = parseFloat(document.getElementById('basket_sell_ecom').value) || 0;
+            var sellStore = parseFloat(document.getElementById('basket_sell_store').value) || 0;
+
+            if(mode === 'customer') {
+                doc.setTextColor(197, 160, 89);
+                doc.text("FIYATLANDIRMA", 14, finalY);
+                doc.setTextColor(0, 0, 0);
+                doc.text("E-Ticaret Platformlari Satis Fiyati: " + sellEcom.toFixed(2) + " TL", 14, finalY + 8);
+                doc.text("Magaza / Ozel Satis Fiyati: " + sellStore.toFixed(2) + " TL", 14, finalY + 16);
+                doc.setFontSize(9); doc.setTextColor(150, 150, 150);
+                doc.text("Fiyatlarimiza KDV dahildir. Letafel Kozmetik - " + new Date().getFullYear(), 14, finalY + 30);
+            } else {
+                var buyNoVat = document.getElementById('det_buy_novat').innerText;
+                var commTotal = document.getElementById('det_comm_total').innerText;
+                var netEcom = document.getElementById('basket_net_ecom').innerText.replace('NET KAR: ', '');
+                var netStore = document.getElementById('basket_net_store').innerText.replace('NET KAR: ', '');
+
+                doc.setTextColor(0, 0, 0); doc.setFontSize(11);
+                doc.text("Maliyet Toplami (KDV Haric): " + buyNoVat, 14, finalY);
+                doc.text("Tahmini E-Ticaret Komisyonu: " + commTotal, 14, finalY + 7);
+                doc.setTextColor(217, 83, 79); doc.text("E-Ticaret Net Kar: " + netEcom, 14, finalY + 15);
+                doc.setTextColor(92, 184, 92); doc.text("Magaza Satis Net Kar: " + netStore, 14, finalY + 22);
+            }
+            doc.save("Letafel_" + (mode === 'customer' ? "Teklif_" : "Maliyet_") + Date.now() + ".pdf");
+        } catch (error) { alert("Hata: " + error.message); }
+    }
+
+    // --- 3. KATALOG YÖNETİMİ (KORUNMUŞTUR) ---
+    function createProduct(name, desc, price) {
+        name = name || "LÜKS ÜRÜN ADI"; desc = desc || "Ürün kısa detayı veya özellikleri."; price = price || "0.00 TL";
+        var id = 'img-' + Math.random().toString(36).substr(2, 9);
+        return '<div class="cat-product-card"><button class="cat-delete-product-btn" data-html2canvas-ignore="true" onclick="this.parentElement.remove()">X</button><div class="cat-img-box" onclick="document.getElementById(\'file-' + id + '\').click()"><div class="cat-badge-display" data-type=""></div><img id="' + id + '" src="https://via.placeholder.com/400x500?text=Gorsel+Yukle"><input type="file" id="file-' + id + '" style="display:none" accept="image/*" onchange="loadCatImg(event, \'' + id + '\')"></div><div class="cat-product-name" contenteditable="true">' + name + '</div><div class="cat-product-desc" contenteditable="true">' + desc + '</div><div class="cat-price-tag" contenteditable="true">' + price + '</div><select class="cat-badge-selector" data-html2canvas-ignore="true" onchange="changeBadge(this)"><option value="">-- Rozet --</option><option value="YENİ">🌟 YENİ</option><option value="SINIRLI STOK">⏳ SINIRLI</option><option value="İNDİRİM">🔥 İNDİRİM</option><option value="FIRSAT">💎 FIRSAT</option></select></div>';
+    }
+
+    function addNewCategory() {
+        var section = document.createElement('div'); section.className = 'cat-category-wrapper';
+        section.innerHTML = '<div class="cat-category-header"><div class="cat-category-title" contenteditable="true">KOLEKSİYON BAŞLIĞI</div><div class="ui-hide-on-capture" data-html2canvas-ignore="true"><select class="cat-control-btn layout-selector" onchange="changeLayout(this)" title="Sütun Düzeni"><option value="cat-grid-1">1\'li</option><option value="cat-grid-2" selected>2\'li</option><option value="cat-grid-3">3\'lü</option><option value="cat-grid-4">4\'lü</option></select><button class="cat-control-btn" onclick="addProduct(this)">+ Ürün</button><button class="cat-control-btn" style="color:red; border-color:red;" onclick="this.closest(\'.cat-category-wrapper\').remove()">Sil</button></div></div><div class="cat-category-products cat-grid-2">' + createProduct() + createProduct() + '</div>';
+        document.getElementById('grid-area').appendChild(section);
+    }
+
+    function addProduct(btn) { btn.closest('.cat-category-wrapper').querySelector('.cat-category-products').insertAdjacentHTML('beforeend', createProduct()); }
+    function changeLayout(sel) { var c = sel.closest('.cat-category-wrapper').querySelector('.cat-category-products'); c.className = 'cat-category-products ' + sel.value; }
+    function changeBadge(sel) { var b = sel.closest('.cat-product-card').querySelector('.cat-badge-display'); var v = sel.value; if(v.includes("YENİ")) v="YENİ"; else if(v.includes("İNDİRİM")) v="İNDİRİM"; else if(v.includes("STOK")) v="SINIRLI STOK"; else if(v.includes("FIRSAT")) v="FIRSAT"; b.innerText=v; b.setAttribute('data-type',v); b.style.display=v?'block':'none'; }
+    function loadCatImg(e, id) { var r=new FileReader(); r.onload=x=>document.getElementById(id).src=x.target.result; if(e.target.files[0]) r.readAsDataURL(e.target.files[0]); }
+    function clearAll() { if(confirm("Tüm kataloğu sıfırlamak istediğinize emin misiniz?")) document.getElementById('grid-area').innerHTML = ""; }
+    
+    // --- YENİ: KATALOĞU BULUTA KAYDET ---
+    window.saveCatalogToCloud = async function() {
+        var catName = prompt("Katalog için bir isim girin (Örn: 2026 Yaz Sezonu):");
+        if(!catName) return;
+        
+        var data = {
+            name: catName,
+            date: new Date().toLocaleDateString('tr-TR'),
+            title: document.getElementById('main-title').innerText,
+            logo: document.getElementById('company-logo').src,
+            content: document.getElementById('grid-area').innerHTML,
+            footer: document.querySelector('.cat-footer div').innerText
+        };
+        
+        try {
+            await window.fbAddDoc(window.fbCollection(window.db, "catalogs"), data);
+            alert("Katalog başarıyla BULUTA kaydedildi!");
+        } catch(e) { alert("Kaydedilemedi: " + e.message); }
+    }
+
+    // --- YENİ: KATALOGLARI BULUTTAN GETİR ---
+    window.openCloudCatalogs = async function() {
+        var modal = new bootstrap.Modal(document.getElementById('catalogModal'));
+        modal.show();
+        var listDiv = document.getElementById('cloudCatalogList');
+        listDiv.innerHTML = '<div class="p-4 text-center text-muted"><i class="fas fa-spinner fa-spin fs-4 mb-2"></i><br>Kataloglar Yükleniyor...</div>';
+        
+        try {
+            var snap = await window.fbGetDocs(window.fbCollection(window.db, "catalogs"));
+            listDiv.innerHTML = '';
+            if(snap.empty) {
+                listDiv.innerHTML = '<div class="p-4 text-center text-danger fw-bold">Kayıtlı katalog bulunamadı.</div>';
+                return;
+            }
+            
+            snap.forEach(doc => {
+                var c = doc.data();
+                var btn = document.createElement('button');
+                btn.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
+                btn.innerHTML = '<span class="fw-bold text-primary"><i class="fas fa-book me-2"></i>' + c.name + '</span><span class="badge bg-secondary">' + c.date + '</span>';
+                btn.onclick = function() {
+                    document.getElementById('main-title').innerText = c.title || "";
+                    document.getElementById('company-logo').src = c.logo || "";
+                    document.getElementById('grid-area').innerHTML = c.content || "";
+                    var f = document.querySelector('.cat-footer div');
+                    if(f) f.innerText = c.footer || "";
+                    modal.hide();
+                    alert("Katalog başarıyla yüklendi.");
+                };
+                listDiv.appendChild(btn);
+            });
+        } catch(e) {
+            listDiv.innerHTML = '<div class="p-4 text-center text-danger">Bağlantı Hatası: ' + e.message + '</div>';
+        }
+    }
+
+    function exportToPNG() {
+        try {
+            var btn = document.getElementById('png-btn'); var originalText = btn.innerHTML; btn.innerHTML = "⏳ Oluşturuluyor..."; btn.disabled = true; document.body.classList.add('js-capturing');
+            var wrapper = document.getElementById('page-content');
+            html2canvas(wrapper, { scale: 2, useCORS: true, backgroundColor: "#ffffff", logging: false, onclone: function(clonedDoc) { var w = clonedDoc.getElementById('page-content'); if(w) { w.style.margin = "0"; w.style.boxShadow = "none"; } var l = clonedDoc.querySelector('.cat-logo-box'); if (l) l.style.border = "none"; var hiddenElements = clonedDoc.querySelectorAll('.ui-hide-on-capture, .cat-delete-product-btn, .cat-badge-selector'); for(var i=0; i<hiddenElements.length; i++) hiddenElements[i].style.display = 'none'; } }).then(function(canvas) { document.body.classList.remove('js-capturing'); btn.innerHTML = originalText; btn.disabled = false; var link = document.createElement('a'); link.download = 'Letafel_Katalog_' + new Date().toISOString().slice(0,10) + '.png'; link.href = canvas.toDataURL('image/png'); link.click(); }).catch(function(err) { document.body.classList.remove('js-capturing'); btn.innerHTML = originalText; btn.disabled = false; alert("Fotoğraf hatası."); });
+        } catch(e) { alert("Kütüphane Hatası"); }
     }
 
     function exportBasketPDF(mode) {
