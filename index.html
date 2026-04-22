@@ -439,8 +439,12 @@
                 <button class="admin-btn btn-green" onclick="addNewCategory()">+ Yeni Grup (Kategori)</button>
             </div>
             <div>
+                <button class="admin-btn btn-blue" onclick="document.getElementById('importInput').click()" title="Bilgisayardaki JSON dosyasını açar">📁 PC'den Yükle</button>
+                <input type="file" id="importInput" style="display:none" accept=".json" onchange="importFromJson(event)">
+                
                 <button class="admin-btn btn-blue" onclick="openCloudCatalogs()">☁️ Buluttan Yükle</button>
                 <button class="admin-btn btn-blue" onclick="saveCatalogToCloud()">☁️ Buluta Kaydet</button>
+                
                 <button class="admin-btn btn-gold" id="png-btn" onclick="exportToPNG()">📸 FOTOĞRAF OLARAK İNDİR</button>
                 <button class="admin-btn btn-red" onclick="clearAll()">🗑️ Temizle</button>
             </div>
@@ -2016,6 +2020,44 @@ function handleLogout() {
     function importFromJson(event) { if(!event.target.files[0]) return; var reader = new FileReader(); reader.onload = function(e) { try { var data = JSON.parse(e.target.result); if(data.title) document.getElementById('main-title').innerText = data.title; if(data.logo) document.getElementById('company-logo').src = data.logo; if(data.content) document.getElementById('grid-area').innerHTML = data.content; if(data.footer) { var f = document.querySelector('.cat-footer div'); if(f) f.innerText = data.footer; } alert("Katalog Başarıyla Yüklendi."); } catch (err) { console.error(err); } document.getElementById('importInput').value = ''; }; reader.readAsText(event.target.files[0]); }
     function clearAll() { if(confirm("Tüm kataloğu sıfırlamak istediğinize emin misiniz?")) document.getElementById('grid-area').innerHTML = ""; }
     
+// --- YENİ EKLENEN: PC'DEN JSON YÜKLEME VE İNDİRME ---
+    window.exportToJson = function() { 
+        var data = { 
+            title: document.getElementById('main-title').innerText, 
+            logo: document.getElementById('company-logo').src, 
+            content: document.getElementById('grid-area').innerHTML, 
+            footer: document.querySelector('.cat-footer div').innerText 
+        }; 
+        var blob = new Blob([JSON.stringify(data)], {type: "application/json"}); 
+        var a = document.createElement('a'); 
+        a.href = URL.createObjectURL(blob); 
+        a.download = "Letafel_Katalog_Yedek.json"; 
+        a.click(); 
+    }
+
+    window.importFromJson = function(event) { 
+        if(!event.target.files[0]) return; 
+        var reader = new FileReader(); 
+        reader.onload = function(e) { 
+            try { 
+                var data = JSON.parse(e.target.result); 
+                if(data.title) document.getElementById('main-title').innerText = data.title; 
+                if(data.logo) document.getElementById('company-logo').src = data.logo; 
+                if(data.content) document.getElementById('grid-area').innerHTML = data.content; 
+                if(data.footer) { 
+                    var f = document.querySelector('.cat-footer div'); 
+                    if(f) f.innerText = data.footer; 
+                } 
+                alert("Katalog PC'den Başarıyla Yüklendi."); 
+            } catch (err) { 
+                console.error(err); 
+                alert("Geçersiz veya bozuk JSON dosyası!"); 
+            } 
+            document.getElementById('importInput').value = ''; 
+        }; 
+        reader.readAsText(event.target.files[0]); 
+    }
+
     function exportToPNG() {
         try {
             var btn = document.getElementById('png-btn'); var originalText = btn.innerHTML; btn.innerHTML = "⏳ Oluşturuluyor..."; btn.disabled = true; document.body.classList.add('js-capturing');
