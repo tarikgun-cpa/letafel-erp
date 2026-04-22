@@ -751,28 +751,58 @@
         try {
             source = source || 'margin'; 
             var buy = manualBuyPrice !== undefined ? manualBuyPrice : (parseFloat(document.getElementById('inp_buy').value) || 0);
-            var shipEx = parseFloat(document.getElementById('inp_ship').value) || 0;
             var tax = parseFloat(document.getElementById('inp_tax').value) || 0;
             var comm = parseFloat(document.getElementById('inp_comm').value) / 100 || 0;
             
             var taxFactor = 1 + (tax/100); 
             var innerTax = (tax/100) / taxFactor; 
+            
+            // --- YENİ: TRENDYOL AKILLI KARGO DİLİMLERİ ---
+            function getShipCost(price) {
+                if(price <= 0) return 83.93; // Fiyat yoksa en yüksek barem
+                if(price < 200) return 42.91;
+                if(price < 350) return 73.74;
+                return 83.93;
+            }
+
+            var shipEx = parseFloat(document.getElementById('inp_ship').value) || 83.93;
+            var marginEcom = parseFloat(document.getElementById('inp_margin_ecom').value) / 100 || 0;
+            var denomEcom = 1 - comm - innerTax;
+            var sellEcom = parseFloat(document.getElementById('inp_sell_ecom').value) || 0;
+
+            // Kargo Maliyetini Fiyata Göre Otomatik Belirle
+            if(source === 'ecom_price') {
+                // Fiyatı kendiniz yazdıysanız kargo doğrudan o fiyata göre seçilir
+                shipEx = getShipCost(sellEcom);
+                document.getElementById('inp_ship').value = shipEx;
+            } else {
+                // Marjdan fiyat hesaplıyorsak, doğru kargo baremini bulmak için 2 turlu analiz yapıyoruz
+                var testShip = shipEx;
+                for(var i=0; i<2; i++) {
+                    var tShipInc = testShip * taxFactor;
+                    var tVatInput = (buy - (buy/taxFactor)) + (tShipInc - testShip);
+                    if (denomEcom > 0 && buy > 0) {
+                        sellEcom = ((buy + tShipInc) * (1 + marginEcom) - tVatInput) / denomEcom;
+                    }
+                    testShip = getShipCost(sellEcom);
+                }
+                shipEx = testShip;
+                document.getElementById('inp_ship').value = shipEx;
+            }
+
+            // Kargo netleştiğine göre asıl matematiği yapalım
             var shipInc = shipEx * taxFactor; 
             var costEcom = buy + shipInc; 
             var vatInputEcom = (buy - (buy/taxFactor)) + (shipInc - shipEx); 
-            var denomEcom = 1 - comm - innerTax;
 
             var costStore = buy; 
             var vatInputStore = (buy - (buy/taxFactor));
             var denomStore = 1 - innerTax;
 
-            var marginEcom = parseFloat(document.getElementById('inp_margin_ecom').value) / 100 || 0;
             var marginStore = parseFloat(document.getElementById('inp_margin_store').value) / 100 || 0;
-            
-            var sellEcom = 0, sellStore = 0;
+            var sellStore = 0;
 
             if(source === 'ecom_price') {
-                sellEcom = parseFloat(document.getElementById('inp_sell_ecom').value) || 0;
                 if(costEcom > 0 && denomEcom > 0) {
                     var targetEcom = sellEcom * denomEcom + vatInputEcom;
                     marginEcom = (targetEcom / costEcom) - 1;
@@ -780,8 +810,6 @@
                 }
             } else {
                 if (denomEcom > 0 && buy > 0) {
-                    var tEcom = costEcom * (1 + marginEcom); 
-                    sellEcom = (tEcom - vatInputEcom) / denomEcom; 
                     document.getElementById('inp_sell_ecom').value = sellEcom.toFixed(2);
                 } else {
                     document.getElementById('inp_sell_ecom').value = "";
@@ -1526,25 +1554,44 @@
     function calcBasketProfit() {
         var taxRate = parseFloat(document.getElementById('basket_tax').value) || 20;
         var commRate = parseFloat(document.getElementById('basket_comm').value) / 100 || 0;
-        var shipEx = parseFloat(document.getElementById('basket_ship').value) || 0;
+        var sellEcom = parseFloat(document.getElementById('basket_sell_ecom').value) || 0;
         
+        // --- YENİ: TRENDYOL AKILLI SEPET KARGOSU ---
+        var shipEx = 83.93; // Varsayılan değer
+        if(sellEcom > 0) {
+            if(sellEcom < 200) shipEx = 42.91;
+            else if(sellEcom < 350) shipEx = 73.74;
+        }
+        
+        // Hesaplanan kargoyu ekrandaki kutucuğa yansıt
+        var shipInput = document.getElementById('basket_ship');
+        if(shipInput) shipInput.value = shipEx;
+
         var taxFactor = 1 + (taxRate / 100);
         var innerTax = (taxRate / 100) / taxFactor;
         
+        var shipInc = shipEx * taxFactor;
+        
+        // Kargo değiştiği için sepetin toplam e-ticaret maliyetini anlık güncelle
+        var currentBasketEcomCost = totalBasketBuyCost + shipInc;
+
         var vatInputProducts = totalBasketBuyCost - (totalBasketBuyCost / taxFactor);
-        var vatInputCargo = (shipEx * taxFactor) - shipEx;
+        var vatInputCargo = shipInc - shipEx;
         var vatInputEcom = vatInputProducts + vatInputCargo;
         var vatInputStore = vatInputProducts; 
 
+        // Ekrandaki Kargo (KDV'siz/KDV'li) metnini canlı güncelle
+        var cargoTextEl = document.getElementById('det_cargo_total');
+        if(cargoTextEl) cargoTextEl.innerText = shipEx.toFixed(2) + " ₺ / " + shipInc.toFixed(2) + " ₺";
+
         // 1. E-TİCARET KÂRI HESAPLAMA
-        var sellEcom = parseFloat(document.getElementById('basket_sell_ecom').value) || 0;
         var commAmount = 0, vatOutEcom = 0, vatPayEcom = 0, netEcom = 0;
         
         if(sellEcom > 0 && basketList.length > 0) {
             commAmount = sellEcom * commRate;
             vatOutEcom = sellEcom * innerTax;
             vatPayEcom = Math.max(0, vatOutEcom - vatInputEcom);
-            netEcom = sellEcom - commAmount - vatPayEcom - totalBasketEcomCost;
+            netEcom = sellEcom - commAmount - vatPayEcom - currentBasketEcomCost;
             
             document.getElementById('det_comm_total').innerText = commAmount.toFixed(2) + " ₺";
             document.getElementById('basket_ecom_tax_val').innerText = "Ödenecek KDV Çıktısı: " + vatPayEcom.toFixed(2) + " ₺";
