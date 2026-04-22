@@ -967,12 +967,19 @@
     }
 
     function deleteItem(id) { 
-        if(confirm("Bu ürünü tamamen silmek istediğinize emin misiniz?")) { 
-            var newList = [];
-            for(var i=0; i<productList.length; i++) {
-                if(productList[i] && productList[i].id != id) newList.push(productList[i]);
+        var p = productList.find(function(x) { return x.id == id; });
+        if(p && p.fbId) {
+            if(confirm("Bu ürünü tamamen silmek istediğinize emin misiniz?")) { 
+                window.fbDeleteDoc(window.fbDoc(window.db, "products", p.fbId))
+                .then(function() { 
+                    window.fetchFromFirestore(); 
+                })
+                .catch(function(e) { 
+                    alert("Buluttan silinirken hata oluştu."); 
+                });
             }
-            productList = newList; saveSafeData(); renderTable(); updateSelects(); updateBasketSelect();
+        } else {
+            alert("Hata: Bu ürün bulutta bulunamadı.");
         }
     }
 
@@ -1496,19 +1503,25 @@
         } catch(e) {}
     }
 
-    function importCSV(input) {
+    async function importCSV(input) {
         if (!input.files || !input.files[0]) return;
         var reader = new FileReader();
-        reader.onload = function(e) {
+        
+        // Dosya okunduğunda (Asenkron işlem)
+        reader.onload = async function(e) {
             try {
                 var lines = e.target.result.split("\n"); var addedCount = 0;
+                console.log("Toplu yükleme başladı...");
+                
                 for(var i = 1; i < lines.length; i++) {
                     if(!lines[i].trim()) continue; var cols = lines[i].split(";"); if(cols.length < 7) continue; 
                     var buyPrice = parseFloat(cols[6].replace(',','.')); if(isNaN(buyPrice) || buyPrice <= 0) continue;
+                    
                     var dummyItem = { 
                         id: Date.now() + i, cat: cols[0].trim(), name: cols[1].trim(), bar: cols[2].trim(), 
                         manuf: cols[3].trim(), whole: cols[4].trim(), qty: cols[5].trim(), 
-                        buy: buyPrice, ship: 83.93, tax: 20, comm: 21, marginEcom: 30, marginStore: 40, pub: true, img: "" 
+                        buy: buyPrice, ship: 83.93, tax: 20, comm: 21, marginEcom: 30, marginStore: 40, pub: true, img: "",
+                        comp_ty: null, comp_hb: null, comp_amz: null, comp_cs: null, comp_ig: null
                     };
                     var tf = 1.20; var it = 0.20/1.20; var cm = 0.21;
                     dummyItem.shipInc = dummyItem.ship * tf; dummyItem.costEcom = dummyItem.buy + dummyItem.shipInc;
@@ -1517,10 +1530,19 @@
                     dummyItem.netEcom = dummyItem.sellEcom - dummyItem.commAmount - Math.max(0, (dummyItem.sellEcom * it) - ve) - dummyItem.costEcom;
                     dummyItem.costStore = dummyItem.buy; var vs = (dummyItem.buy - (dummyItem.buy/tf));
                     dummyItem.sellStore = (dummyItem.costStore * 1.40 - vs) / (1 - it); dummyItem.netStore = dummyItem.sellStore - Math.max(0, (dummyItem.sellStore * it) - vs) - dummyItem.costStore;
-                    productList.push(dummyItem); addedCount++;
+                    
+                    // Doğrudan Firebase'e Kaydet
+                    if(window.fbAddDoc && window.db) {
+                        await window.fbAddDoc(window.fbCollection(window.db, "products"), dummyItem);
+                        addedCount++;
+                    }
                 }
-                if(addedCount > 0) { saveSafeData(); renderTable(); updateSelects(); updateBasketSelect(); alert(addedCount + " ürün Excel'den eklendi."); }
-            } catch(err) { alert("Dosya okuma hatası."); }
+                
+                if(addedCount > 0) { 
+                    await window.fetchFromFirestore(); // İşlem bitince listeyi buluttan tazele
+                    alert(addedCount + " ürün Excel'den başarıyla buluta yüklendi."); 
+                }
+            } catch(err) { alert("Dosya okuma veya yükleme hatası."); }
             input.value = "";
         };
         reader.readAsText(input.files[0], "UTF-8");
@@ -1715,7 +1737,7 @@ function handleLogout() {
     }
   });
 
-  // --- 3. KAYDETME FONKSİYONU (ESKİ HATALI FETCH'İN YERİNE) ---
+  // --- 3. KAYDETME VE GÜNCELLEME FONKSİYONU ---
   window.saveDataFinal = async function(imgData) {
     try {
         var calc = runCalcSafe('margin'); 
@@ -1738,39 +1760,29 @@ function handleLogout() {
 
         var item = {
             id: editId ? parseInt(editId) : Date.now(),
-            cat: document.getElementById('inp_cat').value, 
-            name: document.getElementById('inp_name').value, 
-            bar: document.getElementById('inp_bar').value,
-            manuf: document.getElementById('inp_manuf').value, 
-            whole: document.getElementById('inp_whole').value, 
-            qty: document.getElementById('inp_qty').value || 0,
-            buy: calc.buy || 0, 
-            ship: parseFloat(document.getElementById('inp_ship').value) || 0, 
-            tax: parseFloat(document.getElementById('inp_tax').value) || 0,
-            comm: parseFloat(document.getElementById('inp_comm').value) || 0, 
-            marginEcom: (calc.marginEcom || 0) * 100, 
-            marginStore: (calc.marginStore || 0) * 100,
-            pub: document.getElementById('inp_pub').checked, 
-            sellEcom: calc.sellEcom || 0, 
-            netEcom: calc.netEcom || 0, 
-            costEcom: calc.costEcom || 0, 
-            breakEvenEcom: calc.breakEvenEcom || 0, 
-            shipInc: calc.shipInc || 0, 
-            commAmount: calc.commAmount || 0, 
-            sellStore: calc.sellStore || 0, 
-            netStore: calc.netStore || 0, 
-            costStore: calc.costStore || 0, 
-            breakEvenStore: calc.breakEvenStore || 0, 
-            img: finalImgUrl,
-            comp_ty: parseFloat(document.getElementById('inp_comp_ty').value) || null,
-            comp_hb: parseFloat(document.getElementById('inp_comp_hb').value) || null,
-            comp_amz: parseFloat(document.getElementById('inp_comp_amz').value) || null,
-            comp_cs: parseFloat(document.getElementById('inp_comp_cs').value) || null,
+            cat: document.getElementById('inp_cat').value, name: document.getElementById('inp_name').value, bar: document.getElementById('inp_bar').value,
+            manuf: document.getElementById('inp_manuf').value, whole: document.getElementById('inp_whole').value, qty: document.getElementById('inp_qty').value || 0,
+            buy: calc.buy || 0, ship: parseFloat(document.getElementById('inp_ship').value) || 0, tax: parseFloat(document.getElementById('inp_tax').value) || 0,
+            comm: parseFloat(document.getElementById('inp_comm').value) || 0, marginEcom: (calc.marginEcom || 0) * 100, marginStore: (calc.marginStore || 0) * 100,
+            pub: document.getElementById('inp_pub').checked, sellEcom: calc.sellEcom || 0, netEcom: calc.netEcom || 0, costEcom: calc.costEcom || 0, 
+            breakEvenEcom: calc.breakEvenEcom || 0, shipInc: calc.shipInc || 0, commAmount: calc.commAmount || 0, sellStore: calc.sellStore || 0, 
+            netStore: calc.netStore || 0, costStore: calc.costStore || 0, breakEvenStore: calc.breakEvenStore || 0, img: finalImgUrl,
+            comp_ty: parseFloat(document.getElementById('inp_comp_ty').value) || null, comp_hb: parseFloat(document.getElementById('inp_comp_hb').value) || null,
+            comp_amz: parseFloat(document.getElementById('inp_comp_amz').value) || null, comp_cs: parseFloat(document.getElementById('inp_comp_cs').value) || null,
             comp_ig: parseFloat(document.getElementById('inp_comp_ig').value) || null
         };
 
-        // Buluta Kaydet
-        await window.fbAddDoc(window.fbCollection(window.db, "products"), item);
+        // Ürün listede var mı diye bul, varsa Firebase ID'sini (fbId) al
+        let existingItem = productList.find(p => p.id == editId);
+
+        if (existingItem && existingItem.fbId) {
+            // VARSA GÜNCELLE
+            const docRef = window.fbDoc(window.db, "products", existingItem.fbId);
+            await window.fbUpdateDoc(docRef, item);
+        } else {
+            // YOKSA YENİ EKLE
+            await window.fbAddDoc(window.fbCollection(window.db, "products"), item);
+        }
         
         // Listeyi tazele
         await window.fetchFromFirestore();
@@ -1778,7 +1790,6 @@ function handleLogout() {
         closeModalFallback();
         btnSave.innerHTML = originalBtnText;
         btnSave.disabled = false;
-        alert("Başarıyla buluta kaydedildi!");
 
     } catch(e) {
         console.error(e);
