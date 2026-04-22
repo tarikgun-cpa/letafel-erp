@@ -830,87 +830,17 @@
 
             var fileInput = document.getElementById('inp_imgFile');
             if (fileInput.files && fileInput.files[0]) {
-                compressImage(fileInput.files[0], 300, function(compressedImg) { saveDataFinal(compressedImg); });
+                // Burada window.saveDataFinal olarak güncelledik
+                compressImage(fileInput.files[0], 300, function(compressedImg) { window.saveDataFinal(compressedImg); });
             } else {
                 var editId = document.getElementById('inp_id').value; var existingImg = ""; 
                 if(editId) { 
                     for(var i=0; i<productList.length; i++) { if(productList[i] && productList[i].id == editId) { existingImg = productList[i].img; break; } }
                 }
-                saveDataFinal(existingImg);
+                // Burada window.saveDataFinal olarak güncelledik
+                window.saveDataFinal(existingImg);
             }
         } catch (e) {}
-    }
-
-    window.fetchFromFirestore = async function() { // Başına window. ekledik
-    try {
-        const querySnapshot = await window.fbGetDocs(window.fbCollection(window.db, "products"));
-            var calc = runCalcSafe('margin'); 
-            var editId = document.getElementById('inp_id').value;
-
-            // Görsel yüklenirken kullanıcının beklemesi için butonu kilitliyoruz
-            var btnSave = document.getElementById('btnSave');
-            var originalBtnText = btnSave.innerHTML;
-            btnSave.innerHTML = "BULUTA YÜKLENİYOR... ⏳";
-            btnSave.disabled = true;
-
-            let finalImgUrl = imgData;
-
-            // Eğer yeni bir görsel yüklendiyse (data:image ile başlıyorsa) Firebase Storage'a gönder
-            if (imgData && imgData.startsWith('data:image')) {
-                try {
-                    const imageName = 'urun_gorselleri/' + Date.now() + '.jpg';
-                    const imageRef = window.fbRef(window.storage, imageName);
-                    await window.fbUploadString(imageRef, imgData, 'data_url');
-                    finalImgUrl = await window.fbGetDownloadURL(imageRef); // Firebase'den kalıcı linki alıyoruz
-                } catch (error) {
-                    console.error("Görsel yükleme hatası:", error);
-                    alert("Görsel buluta yüklenemedi, ancak ürün bilgileri kaydedilecek.");
-                }
-            }
-
-            var item = {
-                id: editId ? parseInt(editId) : Date.now(),
-                cat: document.getElementById('inp_cat').value, name: document.getElementById('inp_name').value, bar: document.getElementById('inp_bar').value,
-                manuf: document.getElementById('inp_manuf').value, whole: document.getElementById('inp_whole').value, qty: document.getElementById('inp_qty').value || 0,
-                buy: calc.buy || 0, ship: parseFloat(document.getElementById('inp_ship').value) || 0, tax: parseFloat(document.getElementById('inp_tax').value) || 0,
-                comm: parseFloat(document.getElementById('inp_comm').value) || 0, marginEcom: (calc.marginEcom || 0) * 100, marginStore: (calc.marginStore || 0) * 100,
-                pub: document.getElementById('inp_pub').checked, sellEcom: calc.sellEcom || 0, netEcom: calc.netEcom || 0, costEcom: calc.costEcom || 0, 
-                breakEvenEcom: calc.breakEvenEcom || 0, shipInc: calc.shipInc || 0, commAmount: calc.commAmount || 0, sellStore: calc.sellStore || 0, 
-                netStore: calc.netStore || 0, costStore: calc.costStore || 0, breakEvenStore: calc.breakEvenStore || 0, 
-                img: finalImgUrl, // ARTIK UZUN KOD DEĞİL, TEMİZ FIREBASE LİNKİ KAYDEDİLİYOR
-                comp_ty: parseFloat(document.getElementById('inp_comp_ty').value) || null,
-                comp_hb: parseFloat(document.getElementById('inp_comp_hb').value) || null,
-                comp_amz: parseFloat(document.getElementById('inp_comp_amz').value) || null,
-                comp_cs: parseFloat(document.getElementById('inp_comp_cs').value) || null,
-                comp_ig: parseFloat(document.getElementById('inp_comp_ig').value) || null
-            };
-
-            if(editId) { 
-                var found = false;
-                for(var i=0; i<productList.length; i++) {
-                    if(productList[i] && productList[i].id == editId) { productList[i] = item; found = true; break; }
-                }
-                if(!found) productList.push(item);
-            } else { productList.push(item); }
-            
-            saveSafeData(); 
-            renderTable(); 
-            updateSelects(); 
-            updateBasketSelect(); 
-            closeModalFallback();
-
-            // İşlem bitince butonu eski haline getir
-            if(btnSave) {
-                btnSave.innerHTML = originalBtnText;
-                btnSave.disabled = false;
-            }
-
-        } catch(e) {
-            console.error(e);
-            alert("Kaydetme sırasında bir hata oluştu.");
-            var btnSave = document.getElementById('btnSave');
-            if(btnSave) { btnSave.innerHTML = "KAYDET"; btnSave.disabled = false; }
-        }
     }
 
     function renderTable() {
