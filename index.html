@@ -319,7 +319,10 @@
                 <div class="card-custom border-warning h-100" style="border: 2px solid;">
                     <div class="card-head bg-warning text-dark d-flex justify-content-between align-items-center">
                         <span><i class="fas fa-shopping-basket me-2"></i> Paket Düzenleyici</span>
-                        <button class="btn btn-sm btn-light text-dark fw-bold" onclick="resetActiveBasket()"><i class="fas fa-file"></i> Yeni</button>
+                        <div>
+    <button class="btn btn-sm btn-light text-dark fw-bold me-2" onclick="resetActiveBasket()"><i class="fas fa-file"></i> Yeni</button>
+    <button class="btn btn-sm btn-primary fw-bold text-white shadow-sm" onclick="openAIModal()"><i class="fas fa-magic"></i> AI Paket Öner</button>
+</div>
                     </div>
                     <div class="card-body">
                         <label class="small fw-bold text-muted mb-1">Paket / Sepet Adı</label>
@@ -628,6 +631,18 @@
               <div class="p-4 text-center text-muted">Kataloglar aranıyor...</div>
           </div>
       </div>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="aiModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title fw-bold"><i class="fas fa-magic me-2"></i> AI Çapraz Satış Danışmanı</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body bg-light" id="aiModalBody">
+         </div>
     </div>
   </div>
 </div>
@@ -1304,6 +1319,127 @@
         }
     }
 
+    // ==========================================
+    // YENİ: YAPAY ZEKA PAKET DANIŞMANI
+    // ==========================================
+    var aiPackagesResult = [];
+
+    window.openAIModal = async function() {
+        // API Anahtarını Tarayıcı Hafızasında Tutar
+        var apiKey = localStorage.getItem('gemini_api_key');
+        if(!apiKey) {
+            apiKey = prompt("Lütfen ücretsiz Google Gemini API anahtarınızı girin:\n(Almak için: aistudio.google.com/app/apikey)");
+            if(!apiKey) return;
+            localStorage.setItem('gemini_api_key', apiKey);
+        }
+
+        var modal = new bootstrap.Modal(document.getElementById('aiModal'));
+        modal.show();
+        
+        var body = document.getElementById('aiModalBody');
+        body.innerHTML = '<div class="text-center p-5"><i class="fas fa-spinner fa-spin fa-3x text-primary mb-3"></i><br><h5 class="fw-bold">Yapay Zeka ürünlerinizi inceliyor...</h5><p class="text-muted">Kozmetik uzmanı modelimiz stoklarınızı tarıyor ve kârlı paketler oluşturuyor. (10-15 saniye sürebilir)</p></div>';
+
+        // Sadece stoğu olan ürünleri yapay zekaya gönder (Maliyet ve Token tasarrufu)
+        var availableProducts = productList.filter(p => (parseInt(p.qty) || 0) > 0).map(p => {
+            return { id: p.id, isim: p.name, kategori: p.cat, fiyat: p.sellEcom || p.sellStore || p.buy };
+        });
+
+        if(availableProducts.length < 2) {
+            body.innerHTML = '<div class="alert alert-warning">Yeterli ürün yok. Çapraz satış paketi oluşturmak için en az 2 adet stoklu ürününüz olmalı.</div>';
+            return;
+        }
+
+        // Yapay Zekaya Verilecek Komut (Prompt)
+        var promptText = `Sen uzman bir kozmetik satış danışmanısın. Aşağıdaki ürün listemi incele ve birbiriyle uyumlu (örneğin; şampuan ile saç kremi veya fondöten ile makyaj süngeri) 3 farklı "Çapraz Satış Paketi" oluştur. 
+        SADECE geçerli bir JSON dizisi (array) döndür. Hiçbir açıklama, markdown veya ekstra metin kullanma. 
+        JSON Formatı zorunlu olarak şöyle olmalıdır: [{"name": "Cilt Yenileme Seti", "items": [{"pid": "ürün_id", "qty": 1}]}]
+        Ürün Listesi: ${JSON.stringify(availableProducts)}`;
+
+        try {
+            let response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: promptText }] }],
+                    generationConfig: { temperature: 0.7 } // Yaratıcılık oranı
+                })
+            });
+
+            let data = await response.json();
+            
+            if(data.error) throw new Error(data.error.message);
+
+            let aiText = data.candidates[0].content.parts[0].text;
+            // Markdown temizliği
+            aiText = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
+            
+            aiPackagesResult = JSON.parse(aiText);
+            renderAIResults();
+
+        } catch (error) {
+            console.error(error);
+            body.innerHTML = '<div class="alert alert-danger">Hata oluştu: ' + error.message + '<br><button class="btn btn-sm btn-outline-danger mt-3" onclick="localStorage.removeItem(\'gemini_api_key\'); document.getElementById(\'aiModal\').querySelector(\'.btn-close\').click(); openAIModal();">API Anahtarını Sıfırla ve Tekrar Dene</button></div>';
+        }
+    }
+
+    window.renderAIResults = function() {
+        var body = document.getElementById('aiModalBody');
+        body.innerHTML = '<div class="alert alert-success small mb-3"><i class="fas fa-check-circle"></i> <b>Analiz Tamamlandı!</b> Aşağıdaki paketler birbiriyle uyumlu ürünlerden oluşturuldu. İstediğinizi sepetinize ekleyebilirsiniz.</div>';
+        
+        aiPackagesResult.forEach((pkg, index) => {
+            var html = '<div class="card mb-3 border-primary shadow-sm"><div class="card-header bg-white d-flex justify-content-between align-items-center"><h6 class="fw-bold mb-0 text-primary"><i class="fas fa-box-open"></i> ' + pkg.name + '</h6><button class="btn btn-sm btn-success fw-bold" onclick="saveAIPackage(' + index + ')"><i class="fas fa-plus"></i> Kayıtlı Paketlere Ekle</button></div><div class="card-body py-2"><ul class="list-group list-group-flush small">';
+            
+            pkg.items.forEach(item => {
+                var prod = productList.find(p => p.id == item.pid);
+                var pName = prod ? prod.name : "<span class='text-danger'>Stokta Kalmayan Ürün</span>";
+                html += '<li class="list-group-item d-flex justify-content-between align-items-center">' + pName + '<span class="badge bg-secondary rounded-pill">' + item.qty + ' Adet</span></li>';
+            });
+            
+            html += '</ul></div></div>';
+            body.innerHTML += html;
+        });
+    }
+
+    window.saveAIPackage = function(index) {
+        var pkg = aiPackagesResult[index];
+        if(!pkg) return;
+
+        var newBasket = {
+            id: Date.now() + Math.floor(Math.random()*1000),
+            name: "✨ AI Önerisi: " + pkg.name,
+            items: pkg.items,
+            ship: 83.93,
+            comm: 21,
+            tax: 20,
+            sellEcom: 0,
+            sellStore: 0
+        };
+
+        // Otomatik Paket Fiyatlandırması (Normal fiyatlar üzerinden %10 İndirim Uygular)
+        var totalEcom = 0, totalStore = 0;
+        pkg.items.forEach(item => {
+            var p = productList.find(x => x.id == item.pid);
+            if(p) {
+                totalEcom += (parseFloat(p.sellEcom) || parseFloat(p.buy) || 0) * item.qty;
+                totalStore += (parseFloat(p.sellStore) || parseFloat(p.buy) || 0) * item.qty;
+            }
+        });
+        
+        newBasket.sellEcom = parseFloat((totalEcom * 0.90).toFixed(2));
+        newBasket.sellStore = parseFloat((totalStore * 0.90).toFixed(2));
+
+        savedBaskets.push(newBasket);
+        localStorage.setItem(BASKET_DB_NAME, JSON.stringify(savedBaskets));
+        renderSavedBaskets();
+        
+        // Modalı Kapat
+        var modalEl = document.getElementById('aiModal');
+        var modalInstance = bootstrap.Modal.getInstance(modalEl);
+        if(modalInstance) modalInstance.hide();
+        
+        alert("Harika Seçim!\n'" + pkg.name + "' başarıyla Kayıtlı Paketlerinize eklendi.\nPaket cazip olması için otomatik olarak %10 İndirimli fiyatlandırıldı.");
+    }
+
     var totalBasketBuyCost = 0;
     var totalBasketStoreCost = 0;
     var totalBasketEcomCost = 0;
@@ -1801,7 +1937,7 @@
         } catch (error) { alert("Hata: " + error.message); }
     }
 
-    // --- 3. KATALOG YÖNETİMİ (KORUNMUŞTUR) ---
+    // --- 3. KATALOG YÖNETİMİ VE SİSTEM GİRİŞ FONKSİYONLARI ---
     function createProduct(name, desc, price) {
         name = name || "LÜKS ÜRÜN ADI"; desc = desc || "Ürün kısa detayı veya özellikleri."; price = price || "0.00 TL";
         var id = 'img-' + Math.random().toString(36).substr(2, 9);
@@ -1819,272 +1955,11 @@
     function changeBadge(sel) { var b = sel.closest('.cat-product-card').querySelector('.cat-badge-display'); var v = sel.value; if(v.includes("YENİ")) v="YENİ"; else if(v.includes("İNDİRİM")) v="İNDİRİM"; else if(v.includes("STOK")) v="SINIRLI STOK"; else if(v.includes("FIRSAT")) v="FIRSAT"; b.innerText=v; b.setAttribute('data-type',v); b.style.display=v?'block':'none'; }
     function loadCatImg(e, id) { var r=new FileReader(); r.onload=x=>document.getElementById(id).src=x.target.result; if(e.target.files[0]) r.readAsDataURL(e.target.files[0]); }
     function clearAll() { if(confirm("Tüm kataloğu sıfırlamak istediğinize emin misiniz?")) document.getElementById('grid-area').innerHTML = ""; }
-    
-    // --- YENİ: KATALOĞU BULUTA KAYDET ---
-    // --- YENİ: KATALOĞU BULUTA (STORAGE) KAYDET ---
-    window.saveCatalogToCloud = async function() {
-        var catName = prompt("Katalog için bir isim girin (Örn: 2026 Yaz Sezonu):");
-        if(!catName) return;
-        
-        // Katalog içerik verisi
-        var catalogData = {
-            title: document.getElementById('main-title').innerText,
-            logo: document.getElementById('company-logo').src,
-            content: document.getElementById('grid-area').innerHTML,
-            footer: document.querySelector('.cat-footer div').innerText
-        };
-        
-        try {
-            // 1. Veriyi Metne (JSON String) Çevir
-            var jsonString = JSON.stringify(catalogData);
-            
-            // 2. Sınırsız kapasiteli Firebase Storage'a yükle
-            var fileName = 'kataloglar/' + Date.now() + '.json';
-            var storageRef = window.fbRef(window.storage, fileName);
-            await window.fbUploadString(storageRef, jsonString);
-            
-            // 3. Dosyanın indirme linkini al
-            var downloadUrl = await window.fbGetDownloadURL(storageRef);
-            
-            // 4. Sadece linki ve adını 1 MB limitli veritabanına yaz
-            var metaData = {
-                name: catName,
-                date: new Date().toLocaleDateString('tr-TR'),
-                fileUrl: downloadUrl // Ağır içerik yerine sadece linki koyduk
-            };
-            await window.fbAddDoc(window.fbCollection(window.db, "catalogs"), metaData);
-            
-            alert("Katalog başarıyla BULUTA kaydedildi!");
-        } catch(e) { 
-            console.error(e);
-            alert("Kaydedilemedi: " + e.message); 
-        }
-    }
 
-    // --- YENİ: KATALOGLARI BULUTTAN (STORAGE) GETİR ---
-    window.openCloudCatalogs = async function() {
-        var modal = new bootstrap.Modal(document.getElementById('catalogModal'));
-        modal.show();
-        var listDiv = document.getElementById('cloudCatalogList');
-        listDiv.innerHTML = '<div class="p-4 text-center text-muted"><i class="fas fa-spinner fa-spin fs-4 mb-2"></i><br>Kataloglar Yükleniyor...</div>';
-        
-        try {
-            var snap = await window.fbGetDocs(window.fbCollection(window.db, "catalogs"));
-            listDiv.innerHTML = '';
-            if(snap.empty) {
-                listDiv.innerHTML = '<div class="p-4 text-center text-danger fw-bold">Kayıtlı katalog bulunamadı.</div>';
-                return;
-            }
-            
-            snap.forEach(doc => {
-                var c = doc.data();
-                var btn = document.createElement('button');
-                btn.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
-                btn.innerHTML = '<span class="fw-bold text-primary"><i class="fas fa-book me-2"></i>' + c.name + '</span><span class="badge bg-secondary">' + c.date + '</span>';
-                
-                // Tıklandığında Storage Linkinden İçeriği İndir
-                btn.onclick = async function() {
-                    try {
-                        var originalBtnHtml = btn.innerHTML;
-                        btn.innerHTML = '<i class="fas fa-spinner fa-spin text-primary"></i> İndiriliyor...';
-                        
-                        if(c.fileUrl) {
-                            let response = await fetch(c.fileUrl);
-                            let data = await response.json();
-                            
-                            document.getElementById('main-title').innerText = data.title || "";
-                            document.getElementById('company-logo').src = data.logo || "";
-                            document.getElementById('grid-area').innerHTML = data.content || "";
-                            var f = document.querySelector('.cat-footer div');
-                            if(f) f.innerText = data.footer || "";
-                        }
-                        
-                        modal.hide();
-                        alert("Katalog başarıyla yüklendi.");
-                    } catch(err) {
-                        alert("Katalog indirilirken hata oluştu: " + err.message);
-                        btn.innerHTML = originalBtnHtml; // Hata olursa butonu eski haline getir
-                    }
-                };
-                listDiv.appendChild(btn);
-            });
-        } catch(e) {
-            listDiv.innerHTML = '<div class="p-4 text-center text-danger">Bağlantı Hatası: ' + e.message + '</div>';
-        }
-    }
-
-    function exportToPNG() {
-        try {
-            var btn = document.getElementById('png-btn'); var originalText = btn.innerHTML; btn.innerHTML = "⏳ Oluşturuluyor..."; btn.disabled = true; document.body.classList.add('js-capturing');
-            var wrapper = document.getElementById('page-content');
-            html2canvas(wrapper, { scale: 2, useCORS: true, backgroundColor: "#ffffff", logging: false, onclone: function(clonedDoc) { var w = clonedDoc.getElementById('page-content'); if(w) { w.style.margin = "0"; w.style.boxShadow = "none"; } var l = clonedDoc.querySelector('.cat-logo-box'); if (l) l.style.border = "none"; var hiddenElements = clonedDoc.querySelectorAll('.ui-hide-on-capture, .cat-delete-product-btn, .cat-badge-selector'); for(var i=0; i<hiddenElements.length; i++) hiddenElements[i].style.display = 'none'; } }).then(function(canvas) { document.body.classList.remove('js-capturing'); btn.innerHTML = originalText; btn.disabled = false; var link = document.createElement('a'); link.download = 'Letafel_Katalog_' + new Date().toISOString().slice(0,10) + '.png'; link.href = canvas.toDataURL('image/png'); link.click(); }).catch(function(err) { document.body.classList.remove('js-capturing'); btn.innerHTML = originalText; btn.disabled = false; alert("Fotoğraf hatası."); });
-        } catch(e) { alert("Kütüphane Hatası"); }
-    }
-
-    // --- YENİ: KATALOĞU BULUTA (STORAGE) KAYDET ---
-    window.saveCatalogToCloud = async function() {
-        var catName = prompt("Katalog için bir isim girin (Örn: 2026 Yaz Sezonu):");
-        if(!catName) return;
-        
-        var catalogData = {
-            title: document.getElementById('main-title').innerText,
-            logo: document.getElementById('company-logo').src,
-            content: document.getElementById('grid-area').innerHTML,
-            footer: document.querySelector('.cat-footer div').innerText
-        };
-        
-        try {
-            var jsonString = JSON.stringify(catalogData);
-            var fileName = 'kataloglar/' + Date.now() + '.json';
-            var storageRef = window.fbRef(window.storage, fileName);
-            await window.fbUploadString(storageRef, jsonString);
-            
-            var downloadUrl = await window.fbGetDownloadURL(storageRef);
-            
-            var metaData = {
-                name: catName,
-                date: new Date().toLocaleDateString('tr-TR'),
-                fileUrl: downloadUrl
-            };
-            await window.fbAddDoc(window.fbCollection(window.db, "catalogs"), metaData);
-            
-            alert("Katalog başarıyla BULUTA kaydedildi!");
-        } catch(e) { 
-            console.error(e);
-            alert("Kaydedilemedi: " + e.message); 
-        }
-    }
-
-    // --- YENİ: KATALOGLARI BULUTTAN (STORAGE) GETİR ---
-    window.openCloudCatalogs = async function() {
-        var modal = new bootstrap.Modal(document.getElementById('catalogModal'));
-        modal.show();
-        var listDiv = document.getElementById('cloudCatalogList');
-        listDiv.innerHTML = '<div class="p-4 text-center text-muted"><i class="fas fa-spinner fa-spin fs-4 mb-2"></i><br>Kataloglar Yükleniyor...</div>';
-        
-        try {
-            var snap = await window.fbGetDocs(window.fbCollection(window.db, "catalogs"));
-            listDiv.innerHTML = '';
-            if(snap.empty) {
-                listDiv.innerHTML = '<div class="p-4 text-center text-danger fw-bold">Kayıtlı katalog bulunamadı.</div>';
-                return;
-            }
-            
-            snap.forEach(doc => {
-                var c = doc.data();
-                var btn = document.createElement('button');
-                btn.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
-                btn.innerHTML = '<span class="fw-bold text-primary"><i class="fas fa-book me-2"></i>' + c.name + '</span><span class="badge bg-secondary">' + c.date + '</span>';
-                
-                btn.onclick = async function() {
-                    try {
-                        var originalBtnHtml = btn.innerHTML;
-                        btn.innerHTML = '<i class="fas fa-spinner fa-spin text-primary"></i> İndiriliyor...';
-                        
-                        if(c.fileUrl) {
-                            let response = await fetch(c.fileUrl);
-                            let data = await response.json();
-                            
-                            document.getElementById('main-title').innerText = data.title || "";
-                            document.getElementById('company-logo').src = data.logo || "";
-                            document.getElementById('grid-area').innerHTML = data.content || "";
-                            var f = document.querySelector('.cat-footer div');
-                            if(f) f.innerText = data.footer || "";
-                        }
-                        
-                        modal.hide();
-                        alert("Katalog başarıyla yüklendi.");
-                    } catch(err) {
-                        alert("Katalog indirilirken hata oluştu: " + err.message);
-                        btn.innerHTML = originalBtnHtml; 
-                    }
-                };
-                listDiv.appendChild(btn);
-            });
-        } catch(e) {
-            listDiv.innerHTML = '<div class="p-4 text-center text-danger">Bağlantı Hatası: ' + e.message + '</div>';
-        }
-    }
-
-    // --- KATALOG (KORUNMUŞTUR) ---
-    function createProduct(name, desc, price) {
-        name = name || "LÜKS ÜRÜN ADI"; desc = desc || "Ürün kısa detayı veya özellikleri."; price = price || "0.00 TL";
-        var id = 'img-' + Math.random().toString(36).substr(2, 9);
-        return '<div class="cat-product-card">' +
-            '<button class="cat-delete-product-btn" data-html2canvas-ignore="true" onclick="this.parentElement.remove()">X</button>' +
-            '<div class="cat-img-box" onclick="document.getElementById(\'file-' + id + '\').click()">' +
-                '<div class="cat-badge-display" data-type=""></div>' +
-                '<img id="' + id + '" src="https://via.placeholder.com/400x500?text=Gorsel+Yukle">' +
-                '<input type="file" id="file-' + id + '" style="display:none" accept="image/*" onchange="loadCatImg(event, \'' + id + '\')">' +
-            '</div>' +
-            '<div class="cat-product-name" contenteditable="true">' + name + '</div>' +
-            '<div class="cat-product-desc" contenteditable="true">' + desc + '</div>' +
-            '<div class="cat-price-tag" contenteditable="true">' + price + '</div>' +
-            '<select class="cat-badge-selector" data-html2canvas-ignore="true" onchange="changeBadge(this)">' +
-                '<option value="">-- Rozet --</option><option value="YENİ">🌟 YENİ</option><option value="SINIRLI STOK">⏳ SINIRLI</option><option value="İNDİRİM">🔥 İNDİRİM</option><option value="FIRSAT">💎 FIRSAT</option>' +
-            '</select></div>';
-    }
-async function handleLogin() {
-    const email = document.getElementById('login-email').value;
-    const pass = document.getElementById('login-pass').value;
-    const btn = document.getElementById('btnLogin');
-    const err = document.getElementById('login-error');
-
-    if(!email || !pass) { alert("Lütfen tüm alanları doldurun."); return; }
-
-    btn.innerHTML = "Giriş Yapılıyor... ⏳";
-    btn.disabled = true;
-    err.style.display = 'none';
-
-    try {
-        await window.fbSignIn(window.auth, email, pass);
-    } catch (error) {
-        console.error("Giriş hatası:", error);
-        err.style.display = 'block';
-        btn.innerHTML = "SİSTEME GİRİŞ YAP";
-        btn.disabled = false;
-    }
-}
-
-function handleLogout() {
-    if(confirm("Oturumu kapatmak istediğinize emin misiniz?")) {
-        window.fbSignOut(window.auth).then(() => {
-            location.reload(); // Sayfayı yenileyerek giriş ekranına döndür
-        });
-    }
-}
-    function addNewCategory() {
-        var section = document.createElement('div'); section.className = 'cat-category-wrapper';
-        section.innerHTML = 
-            '<div class="cat-category-header"><div class="cat-category-title" contenteditable="true">KOLEKSİYON BAŞLIĞI</div>' +
-            '<div class="ui-hide-on-capture" data-html2canvas-ignore="true">' +
-                '<select class="cat-control-btn layout-selector" onchange="changeLayout(this)" title="Sütun Düzeni"><option value="cat-grid-1">1\'li</option><option value="cat-grid-2" selected>2\'li</option><option value="cat-grid-3">3\'lü</option><option value="cat-grid-4">4\'lü</option></select>' +
-                '<button class="cat-control-btn" onclick="addProduct(this)">+ Ürün</button><button class="cat-control-btn" style="color:red; border-color:red;" onclick="this.closest(\'.cat-category-wrapper\').remove()">Sil</button>' +
-            '</div></div><div class="cat-category-products cat-grid-2">' + createProduct() + createProduct() + '</div>';
-        document.getElementById('grid-area').appendChild(section);
-    }
-
-    function addProduct(btn) { var c = btn.closest('.cat-category-wrapper').querySelector('.cat-category-products'); c.insertAdjacentHTML('beforeend', createProduct()); }
-    function changeLayout(selectEl) { var c = selectEl.closest('.cat-category-wrapper').querySelector('.cat-category-products'); c.className = 'cat-category-products ' + selectEl.value; var options = selectEl.options; for(var i=0; i<options.length; i++) options[i].removeAttribute('selected'); options[selectEl.selectedIndex].setAttribute('selected', 'selected'); }
-    function changeBadge(selectEl) { var badgeDiv = selectEl.closest('.cat-product-card').querySelector('.cat-badge-display'); var val = selectEl.value; if(val.indexOf("YENİ") !== -1) val = "YENİ"; else if(val.indexOf("İNDİRİM") !== -1) val = "İNDİRİM"; else if(val.indexOf("STOK") !== -1) val = "SINIRLI STOK"; else if(val.indexOf("FIRSAT") !== -1) val = "FIRSAT"; badgeDiv.innerText = val; badgeDiv.setAttribute('data-type', val); badgeDiv.style.display = val ? 'block' : 'none'; var options = selectEl.options; for(var i=0; i<options.length; i++) options[i].removeAttribute('selected'); options[selectEl.selectedIndex].setAttribute('selected', 'selected'); }
-    function loadCatImg(event, imgId) { var reader = new FileReader(); reader.onload = function(e) { document.getElementById(imgId).src = e.target.result; }; if(event.target.files[0]) reader.readAsDataURL(event.target.files[0]); }
-    function exportToJson() { var data = { title: document.getElementById('main-title').innerText, logo: document.getElementById('company-logo').src, content: document.getElementById('grid-area').innerHTML, footer: document.querySelector('.cat-footer div').innerText }; var blob = new Blob([JSON.stringify(data)], {type: "application/json"}); var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = "Letafel_Katalog_v12.json"; a.click(); }
-    function importFromJson(event) { if(!event.target.files[0]) return; var reader = new FileReader(); reader.onload = function(e) { try { var data = JSON.parse(e.target.result); if(data.title) document.getElementById('main-title').innerText = data.title; if(data.logo) document.getElementById('company-logo').src = data.logo; if(data.content) document.getElementById('grid-area').innerHTML = data.content; if(data.footer) { var f = document.querySelector('.cat-footer div'); if(f) f.innerText = data.footer; } alert("Katalog Başarıyla Yüklendi."); } catch (err) { console.error(err); } document.getElementById('importInput').value = ''; }; reader.readAsText(event.target.files[0]); }
-    function clearAll() { if(confirm("Tüm kataloğu sıfırlamak istediğinize emin misiniz?")) document.getElementById('grid-area').innerHTML = ""; }
-    
-// --- YENİ EKLENEN: PC'DEN JSON YÜKLEME VE İNDİRME ---
     window.exportToJson = function() { 
-        var data = { 
-            title: document.getElementById('main-title').innerText, 
-            logo: document.getElementById('company-logo').src, 
-            content: document.getElementById('grid-area').innerHTML, 
-            footer: document.querySelector('.cat-footer div').innerText 
-        }; 
+        var data = { title: document.getElementById('main-title').innerText, logo: document.getElementById('company-logo').src, content: document.getElementById('grid-area').innerHTML, footer: document.querySelector('.cat-footer div').innerText }; 
         var blob = new Blob([JSON.stringify(data)], {type: "application/json"}); 
-        var a = document.createElement('a'); 
-        a.href = URL.createObjectURL(blob); 
-        a.download = "Letafel_Katalog_Yedek.json"; 
-        a.click(); 
+        var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = "Letafel_Katalog_Yedek.json"; a.click(); 
     }
 
     window.importFromJson = function(event) { 
@@ -2096,18 +1971,54 @@ function handleLogout() {
                 if(data.title) document.getElementById('main-title').innerText = data.title; 
                 if(data.logo) document.getElementById('company-logo').src = data.logo; 
                 if(data.content) document.getElementById('grid-area').innerHTML = data.content; 
-                if(data.footer) { 
-                    var f = document.querySelector('.cat-footer div'); 
-                    if(f) f.innerText = data.footer; 
-                } 
+                if(data.footer) { var f = document.querySelector('.cat-footer div'); if(f) f.innerText = data.footer; } 
                 alert("Katalog PC'den Başarıyla Yüklendi."); 
-            } catch (err) { 
-                console.error(err); 
-                alert("Geçersiz veya bozuk JSON dosyası!"); 
-            } 
+            } catch (err) { alert("Geçersiz veya bozuk JSON dosyası!"); } 
             document.getElementById('importInput').value = ''; 
         }; 
         reader.readAsText(event.target.files[0]); 
+    }
+
+    window.saveCatalogToCloud = async function() {
+        var catName = prompt("Katalog için bir isim girin (Örn: 2026 Yaz Sezonu):");
+        if(!catName) return;
+        var catalogData = { title: document.getElementById('main-title').innerText, logo: document.getElementById('company-logo').src, content: document.getElementById('grid-area').innerHTML, footer: document.querySelector('.cat-footer div').innerText };
+        try {
+            var jsonString = JSON.stringify(catalogData);
+            var fileName = 'kataloglar/' + Date.now() + '.json';
+            var storageRef = window.fbRef(window.storage, fileName);
+            await window.fbUploadString(storageRef, jsonString);
+            var downloadUrl = await window.fbGetDownloadURL(storageRef);
+            var metaData = { name: catName, date: new Date().toLocaleDateString('tr-TR'), fileUrl: downloadUrl };
+            await window.fbAddDoc(window.fbCollection(window.db, "catalogs"), metaData);
+            alert("Katalog başarıyla BULUTA kaydedildi!");
+        } catch(e) { alert("Kaydedilemedi: " + e.message); }
+    }
+
+    window.openCloudCatalogs = async function() {
+        var modal = new bootstrap.Modal(document.getElementById('catalogModal')); modal.show();
+        var listDiv = document.getElementById('cloudCatalogList'); listDiv.innerHTML = '<div class="p-4 text-center text-muted"><i class="fas fa-spinner fa-spin fs-4 mb-2"></i><br>Kataloglar Yükleniyor...</div>';
+        try {
+            var snap = await window.fbGetDocs(window.fbCollection(window.db, "catalogs")); listDiv.innerHTML = '';
+            if(snap.empty) { listDiv.innerHTML = '<div class="p-4 text-center text-danger fw-bold">Kayıtlı katalog bulunamadı.</div>'; return; }
+            snap.forEach(doc => {
+                var c = doc.data(); var btn = document.createElement('button');
+                btn.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
+                btn.innerHTML = '<span class="fw-bold text-primary"><i class="fas fa-book me-2"></i>' + c.name + '</span><span class="badge bg-secondary">' + c.date + '</span>';
+                btn.onclick = async function() {
+                    try {
+                        var originalBtnHtml = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin text-primary"></i> İndiriliyor...';
+                        if(c.fileUrl) {
+                            let response = await fetch(c.fileUrl); let data = await response.json();
+                            document.getElementById('main-title').innerText = data.title || ""; document.getElementById('company-logo').src = data.logo || "";
+                            document.getElementById('grid-area').innerHTML = data.content || ""; var f = document.querySelector('.cat-footer div'); if(f) f.innerText = data.footer || "";
+                        }
+                        modal.hide(); alert("Katalog başarıyla yüklendi.");
+                    } catch(err) { alert("Katalog indirilirken hata oluştu: " + err.message); btn.innerHTML = originalBtnHtml; }
+                };
+                listDiv.appendChild(btn);
+            });
+        } catch(e) { listDiv.innerHTML = '<div class="p-4 text-center text-danger">Bağlantı Hatası: ' + e.message + '</div>'; }
     }
 
     function exportToPNG() {
@@ -2117,136 +2028,18 @@ function handleLogout() {
             html2canvas(wrapper, { scale: 2, useCORS: true, backgroundColor: "#ffffff", logging: false, onclone: function(clonedDoc) { var w = clonedDoc.getElementById('page-content'); if(w) { w.style.margin = "0"; w.style.boxShadow = "none"; } var l = clonedDoc.querySelector('.cat-logo-box'); if (l) l.style.border = "none"; var hiddenElements = clonedDoc.querySelectorAll('.ui-hide-on-capture, .cat-delete-product-btn, .cat-badge-selector'); for(var i=0; i<hiddenElements.length; i++) hiddenElements[i].style.display = 'none'; } }).then(function(canvas) { document.body.classList.remove('js-capturing'); btn.innerHTML = originalText; btn.disabled = false; var link = document.createElement('a'); link.download = 'Letafel_Katalog_' + new Date().toISOString().slice(0,10) + '.png'; link.href = canvas.toDataURL('image/png'); link.click(); }).catch(function(err) { document.body.classList.remove('js-capturing'); btn.innerHTML = originalText; btn.disabled = false; alert("Fotoğraf hatası."); });
         } catch(e) { alert("Kütüphane Hatası"); }
     }
-</script>
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
-  import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
-  import { getStorage, ref, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-storage.js";
-  import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyAGTYJbW5Uay1y5aYm1ZLrTDdVW9sCUe8Q",
-    authDomain: "letafel-erp.firebaseapp.com",
-    projectId: "letafel-erp",
-    storageBucket: "letafel-erp.firebasestorage.app",
-    messagingSenderId: "719097031449",
-    appId: "1:719097031449:web:2986ec77708d17729c7388"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-  const storage = getStorage(app);
-  const auth = getAuth(app);
-
-  // Global Tanımlamalar
-  window.db = db;
-  window.storage = storage;
-  window.auth = auth;
-  window.fbCollection = collection;
-  window.fbAddDoc = addDoc;
-  window.fbGetDocs = getDocs;
-  window.fbUpdateDoc = updateDoc;
-  window.fbDeleteDoc = deleteDoc;
-  window.fbDoc = doc;
-  window.fbRef = ref;
-  window.fbUploadString = uploadString;
-  window.fbGetDownloadURL = getDownloadURL;
-  window.fbSignIn = signInWithEmailAndPassword;
-  window.fbOnAuthChanged = onAuthStateChanged;
-  window.fbSignOut = signOut;
-
-  // --- 1. VERİLERİ FIREBASE'DEN ÇEKME FONKSİYONU ---
-  window.fetchFromFirestore = async function() {
-    try {
-        console.log("Veriler çekiliyor...");
-        const querySnapshot = await window.fbGetDocs(window.fbCollection(window.db, "products"));
-        productList = [];
-        querySnapshot.forEach((doc) => {
-            let data = doc.data();
-            data.fbId = doc.id; // Güncelleme/Silme için Firebase ID'sini sakla
-            productList.push(data);
-        });
-        renderTable();
-        updateSelects();
-        updateBasketSelect();
-        console.log("Yükleme tamamlandı.");
-    } catch (error) {
-        console.error("Veri çekme hatası:", error);
+    async function handleLogin() {
+        const email = document.getElementById('login-email').value; const pass = document.getElementById('login-pass').value;
+        const btn = document.getElementById('btnLogin'); const err = document.getElementById('login-error');
+        if(!email || !pass) { alert("Lütfen tüm alanları doldurun."); return; }
+        btn.innerHTML = "Giriş Yapılıyor... ⏳"; btn.disabled = true; err.style.display = 'none';
+        try { await window.fbSignIn(window.auth, email, pass); } catch (error) { err.style.display = 'block'; btn.innerHTML = "SİSTEME GİRİŞ YAP"; btn.disabled = false; }
     }
-  };
 
-  // --- 2. OTURUM DURUMU TAKİBİ ---
-  window.fbOnAuthChanged(auth, (user) => {
-    const overlay = document.getElementById('login-overlay');
-    if (user) {
-      overlay.style.display = 'none';
-      window.fetchFromFirestore(); // Giriş yapılınca verileri çek
-    } else {
-      overlay.style.display = 'flex';
+    function handleLogout() {
+        if(confirm("Oturumu kapatmak istediğinize emin misiniz?")) { window.fbSignOut(window.auth).then(() => { location.reload(); }); }
     }
-  });
-
-  // --- 3. KAYDETME VE GÜNCELLEME FONKSİYONU ---
-  window.saveDataFinal = async function(imgData) {
-    try {
-        var calc = runCalcSafe('margin'); 
-        var editId = document.getElementById('inp_id').value;
-        var btnSave = document.getElementById('btnSave');
-        var originalBtnText = btnSave.innerHTML;
-
-        btnSave.innerHTML = "İŞLENİYOR... ⏳";
-        btnSave.disabled = true;
-
-        let finalImgUrl = imgData;
-
-        // Görseli Firebase Storage'a yükle
-        if (imgData && imgData.startsWith('data:image')) {
-            const imageName = 'urun_gorselleri/' + Date.now() + '.jpg';
-            const imageRef = window.fbRef(window.storage, imageName);
-            await window.fbUploadString(imageRef, imgData, 'data_url');
-            finalImgUrl = await window.fbGetDownloadURL(imageRef);
-        }
-
-        var item = {
-            id: editId ? parseInt(editId) : Date.now(),
-            cat: document.getElementById('inp_cat').value, name: document.getElementById('inp_name').value, bar: document.getElementById('inp_bar').value,
-            manuf: document.getElementById('inp_manuf').value, whole: document.getElementById('inp_whole').value, qty: document.getElementById('inp_qty').value || 0,
-            buy: calc.buy || 0, ship: parseFloat(document.getElementById('inp_ship').value) || 0, tax: parseFloat(document.getElementById('inp_tax').value) || 0,
-            comm: parseFloat(document.getElementById('inp_comm').value) || 0, marginEcom: (calc.marginEcom || 0) * 100, marginStore: (calc.marginStore || 0) * 100,
-            pub: document.getElementById('inp_pub').checked, sellEcom: calc.sellEcom || 0, netEcom: calc.netEcom || 0, costEcom: calc.costEcom || 0, 
-            breakEvenEcom: calc.breakEvenEcom || 0, shipInc: calc.shipInc || 0, commAmount: calc.commAmount || 0, sellStore: calc.sellStore || 0, 
-            netStore: calc.netStore || 0, costStore: calc.costStore || 0, breakEvenStore: calc.breakEvenStore || 0, img: finalImgUrl,
-            comp_ty: parseFloat(document.getElementById('inp_comp_ty').value) || null, comp_hb: parseFloat(document.getElementById('inp_comp_hb').value) || null,
-            comp_amz: parseFloat(document.getElementById('inp_comp_amz').value) || null, comp_cs: parseFloat(document.getElementById('inp_comp_cs').value) || null,
-            comp_ig: parseFloat(document.getElementById('inp_comp_ig').value) || null
-        };
-
-        // Ürün listede var mı diye bul, varsa Firebase ID'sini (fbId) al
-        let existingItem = productList.find(p => p.id == editId);
-
-        if (existingItem && existingItem.fbId) {
-            // VARSA GÜNCELLE
-            const docRef = window.fbDoc(window.db, "products", existingItem.fbId);
-            await window.fbUpdateDoc(docRef, item);
-        } else {
-            // YOKSA YENİ EKLE
-            await window.fbAddDoc(window.fbCollection(window.db, "products"), item);
-        }
-        
-        // Listeyi tazele
-        await window.fetchFromFirestore();
-        
-        closeModalFallback();
-        btnSave.innerHTML = originalBtnText;
-        btnSave.disabled = false;
-
-    } catch(e) {
-        console.error(e);
-        alert("Hata oluştu: " + e.message);
-        btnSave.innerHTML = "KAYDET";
-        btnSave.disabled = false;
-    }
-  };
 </script>
 </body>
 </html>
