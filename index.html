@@ -150,6 +150,7 @@
                 <li class="nav-item"><a class="nav-link text-danger" onclick="switchModule('mod-tukenler', this)"><i class="fas fa-exclamation-circle me-1"></i> Tükenenler</a></li>
                 <li class="nav-item"><a class="nav-link text-warning" onclick="switchModule('mod-sepet', this)"><i class="fas fa-shopping-basket me-1"></i> Paket / Çapraz Satış</a></li>
                 <li class="nav-item"><a class="nav-link" onclick="switchModule('mod-katalog', this)" style="border: 1px solid var(--brand-gold);"><i class="fas fa-book-open me-1"></i> Katalog Sistemi</a></li>
+                <li class="nav-item"><a class="nav-link text-secondary" onclick="switchModule('mod-ayarlar', this)"><i class="fas fa-cogs me-1"></i> Ayarlar</a></li>
             <li class="nav-item"><a class="nav-link text-muted" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i> Çıkış</a></li>
             </ul>
         </div>
@@ -469,7 +470,57 @@
             </footer>
         </div>
     </div>
-
+<div id="mod-ayarlar" class="app-module">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card-custom border-secondary h-100">
+                <div class="card-head bg-secondary text-white"><i class="fas fa-sliders-h me-2"></i> Sistem Ayarları</div>
+                <div class="card-body">
+                    <label class="small fw-bold text-muted mb-1">Satıcı Tipi / Profiliniz</label>
+                    <select id="setting_seller_type" class="form-select mb-3 fw-bold" onchange="saveGlobalSettings()">
+                        <option value="STANDART">Standart Satıcı</option>
+                        <option value="GIRISIMCI_KADIN">Girişimci Kadın (İndirimli)</option>
+                    </select>
+                    
+                    <hr>
+                    <h6 class="fw-bold"><i class="fas fa-plus"></i> Yeni Platform / Kural Ekle</h6>
+                    <input type="text" id="set_plat_name" class="form-control form-control-sm mb-2" placeholder="Platform Adı (Örn: Trendyol)">
+                    <div class="row g-2 mb-2">
+                        <div class="col-6"><input type="number" id="set_plat_comm" class="form-control form-control-sm" placeholder="Komisyon %"></div>
+                        <div class="col-6"><input type="number" id="set_plat_service" class="form-control form-control-sm" placeholder="Hizmet Bedeli ₺"></div>
+                    </div>
+                    <button class="btn btn-sm btn-secondary w-100 fw-bold" onclick="addPlatformRule()">KURALI EKLE</button>
+                    
+                    <hr>
+                    <label class="btn btn-sm btn-outline-success w-100 fw-bold mt-2" style="cursor: pointer;">
+                        <i class="fas fa-file-excel"></i> Excel'den Kuralları Yükle
+                        <input type="file" accept=".csv" style="display:none;" onchange="importPlatformSettingsCSV(this)">
+                    </label>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card-custom h-100">
+                <div class="card-head bg-dark text-white"><i class="fas fa-table me-2"></i> Tanımlı Komisyon ve Kesinti Kuralları</div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Platform</th>
+                                    <th>Komisyon Oranı</th>
+                                    <th>Hizmet Bedeli</th>
+                                    <th class="text-end">İşlem</th>
+                                </tr>
+                            </thead>
+                            <tbody id="platformRulesBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 </div>
 
 <div class="modal fade" id="productModal" tabindex="-1">
@@ -521,18 +572,22 @@
                 <label class="small fw-bold text-secondary mb-1">3. Maliyet ve Satış Ayarları</label>
                 <div class="bg-light p-2 rounded border mb-2">
                     <div class="row g-2">
-                        <div class="col-6">
-                            <label class="small text-muted fw-bold">Kargo (KDV'siz)</label>
-                            <input type="number" id="inp_ship" class="form-control form-control-sm" value="83.93" oninput="runCalcSafe('margin')">
-                        </div>
-                        <div class="col-6">
-                            <label class="small text-muted fw-bold">E-Tic. Komisyon %</label>
-                            <input type="number" id="inp_comm" class="form-control form-control-sm" value="21" oninput="runCalcSafe('margin')">
-                        </div>
-                        <div class="col-12 mt-2">
-                            <label class="small text-muted fw-bold">KDV Oranı %</label>
-                            <input type="number" id="inp_tax" class="form-control form-control-sm" value="20" oninput="runCalcSafe('margin')">
-                        </div>
+    <div class="col-4">
+        <label class="small text-muted fw-bold">Kargo (KDV'siz)</label>
+        <input type="number" id="inp_ship" class="form-control form-control-sm" value="83.93" oninput="runCalcSafe('margin')">
+    </div>
+    <div class="col-4">
+        <label class="small text-muted fw-bold">E-Tic. Komisyon %</label>
+        <input type="number" id="inp_comm" class="form-control form-control-sm" value="21" oninput="runCalcSafe('margin')">
+    </div>
+    <div class="col-4">
+        <label class="small text-muted fw-bold">Hizmet Bedeli (₺)</label>
+        <input type="number" id="inp_service" class="form-control form-control-sm" value="0" placeholder="KDV'siz" oninput="runCalcSafe('margin')">
+    </div>
+    <div class="col-12 mt-2">
+        <label class="small text-muted fw-bold">KDV Oranı %</label>
+        <input type="number" id="inp_tax" class="form-control form-control-sm" value="20" oninput="runCalcSafe('margin')">
+    </div>
                         
                         <div class="col-6 mt-3">
                             <label class="small fw-bold text-danger">E-Ticaret Kar %</label>
@@ -664,6 +719,53 @@
     var activeBasketId = null;
 
     var PLACEHOLDER_IMG = "data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22160%22%20height%3D%22160%22%20style%3D%22background%3A%23eee%22%3E%3Ctext%20x%3D%2250%25%22%20y%3D%2250%25%22%20dominant-baseline%3D%22middle%22%20text-anchor%3D%22middle%22%20fill%3D%22%23999%22%20font-family%3D%22sans-serif%22%3EGORSEL YOK%3C%2Ftext%3E%3C%2Fsvg%3E";
+    var platformRules = [];
+
+function loadSettings() {
+    var savedType = localStorage.getItem('sellerType') || 'STANDART';
+    var savedRules = localStorage.getItem('platformRules');
+    document.getElementById('setting_seller_type').value = savedType;
+    if(savedRules) platformRules = JSON.parse(savedRules);
+    renderPlatformRules();
+}
+
+function saveGlobalSettings() {
+    localStorage.setItem('sellerType', document.getElementById('setting_seller_type').value);
+}
+
+function renderPlatformRules() {
+    var tbody = document.getElementById('platformRulesBody');
+    if(!tbody) return;
+    tbody.innerHTML = '';
+    platformRules.forEach((rule, idx) => {
+        tbody.innerHTML += `<tr>
+            <td class="fw-bold">${rule.name}</td>
+            <td class="text-danger">%${rule.comm}</td>
+            <td class="text-warning">${rule.service} ₺</td>
+            <td class="text-end"><button class="btn btn-sm btn-outline-danger" onclick="deletePlatformRule(${idx})"><i class="fas fa-trash"></i></button></td>
+        </tr>`;
+    });
+}
+
+function addPlatformRule() {
+    var name = document.getElementById('set_plat_name').value;
+    var comm = parseFloat(document.getElementById('set_plat_comm').value) || 0;
+    var service = parseFloat(document.getElementById('set_plat_service').value) || 0;
+    if(!name) return;
+    
+    platformRules.push({ name: name, comm: comm, service: service });
+    localStorage.setItem('platformRules', JSON.stringify(platformRules));
+    renderPlatformRules();
+}
+
+function deletePlatformRule(idx) {
+    platformRules.splice(idx, 1);
+    localStorage.setItem('platformRules', JSON.stringify(platformRules));
+    renderPlatformRules();
+}
+
+// Sayfa yüklendiğinde ayarları çekmek için DOMContentLoaded içine ekleyin:
+// loadSettings();
 
     document.addEventListener("DOMContentLoaded", function() {
         try {
@@ -693,7 +795,7 @@
             if (sellModalEl && typeof bootstrap !== 'undefined') sellBasketModalInstance = new bootstrap.Modal(sellModalEl);
         } catch(e) {}
         
-        renderTable(); renderTxTable(); updateSelects(); updateBasketSelect(); renderSavedBaskets();
+        renderTable(); renderTxTable(); updateSelects(); updateBasketSelect(); renderSavedBaskets();loadSettings();
     });
 
     // ... (ÜST KISIMDAKİ DİĞER STANDART ERP FONKSİYONLARI BURADA KORUNMUŞTUR) ...
@@ -766,23 +868,30 @@
             }
 
             var shipEx = parseFloat(document.getElementById('inp_ship').value) || 83.93;
+            // 1. YENİ EKLENEN: Arayüzden Hizmet Bedelini KDV'siz olarak çekiyoruz.
+            var serviceEx = parseFloat(document.getElementById('inp_service').value) || 0; 
+            
             var marginEcom = parseFloat(document.getElementById('inp_margin_ecom').value) / 100 || 0;
             var denomEcom = 1 - comm - innerTax;
             var sellEcom = parseFloat(document.getElementById('inp_sell_ecom').value) || 0;
 
             // Kargo Maliyetini Fiyata Göre Otomatik Belirle
             if(source === 'ecom_price') {
-                // Fiyatı kendiniz yazdıysanız kargo doğrudan o fiyata göre seçilir
                 shipEx = getShipCost(sellEcom);
                 document.getElementById('inp_ship').value = shipEx;
             } else {
-                // Marjdan fiyat hesaplıyorsak, doğru kargo baremini bulmak için 2 turlu analiz yapıyoruz
                 var testShip = shipEx;
                 for(var i=0; i<2; i++) {
                     var tShipInc = testShip * taxFactor;
-                    var tVatInput = (buy - (buy/taxFactor)) + (tShipInc - testShip);
+                    // 2. YENİ EKLENEN: Hizmet bedelinin KDV'li halini geçici olarak hesaplıyoruz
+                    var tServiceInc = serviceEx * taxFactor; 
+                    
+                    // 3. GÜNCELLENEN: KDV girdisi (indirilecek KDV) hesaplamasına hizmet bedelinin KDV'sini de ekliyoruz.
+                    var tVatInput = (buy - (buy/taxFactor)) + (tShipInc - testShip) + (tServiceInc - serviceEx); 
+                    
                     if (denomEcom > 0 && buy > 0) {
-                        sellEcom = ((buy + tShipInc) * (1 + marginEcom) - tVatInput) / denomEcom;
+                        // 4. GÜNCELLENEN: Satış fiyatını bulurken baz alınan maliyete (buy + tShipInc) hizmet bedelini (tServiceInc) de ekliyoruz.
+                        sellEcom = ((buy + tShipInc + tServiceInc) * (1 + marginEcom) - tVatInput) / denomEcom;
                     }
                     testShip = getShipCost(sellEcom);
                 }
@@ -790,10 +899,16 @@
                 document.getElementById('inp_ship').value = shipEx;
             }
 
-            // Kargo netleştiğine göre asıl matematiği yapalım
+            // Kargo ve Hizmet Bedeli netleştiğine göre asıl matematiği yapalım
             var shipInc = shipEx * taxFactor; 
-            var costEcom = buy + shipInc; 
-            var vatInputEcom = (buy - (buy/taxFactor)) + (shipInc - shipEx); 
+            // 5. YENİ EKLENEN: Hizmet bedelinin nihai KDV'li hali
+            var serviceInc = serviceEx * taxFactor; 
+            
+            // 6. GÜNCELLENEN: Toplam e-ticaret maliyetine Hizmet Bedelini dahil ediyoruz
+            var costEcom = buy + shipInc + serviceInc; 
+            
+            // 7. GÜNCELLENEN: Nihai indirilecek KDV matrahına Hizmet bedeli KDV'sini de ekliyoruz
+            var vatInputEcom = (buy - (buy/taxFactor)) + (shipInc - shipEx) + (serviceInc - serviceEx);
 
             var costStore = buy; 
             var vatInputStore = (buy - (buy/taxFactor));
@@ -865,7 +980,7 @@
             for(var i = 0; i < ids.length; i++) { var elem = document.getElementById(ids[i]); if(elem) elem.value = ""; }
             
             document.getElementById('inp_ship').value = 83.93; document.getElementById('inp_tax').value = 20;
-            document.getElementById('inp_comm').value = 21; document.getElementById('inp_margin_ecom').value = 30; document.getElementById('inp_margin_store').value = 40;
+            document.getElementById('inp_comm').value = 21; document.getElementById('inp_margin_ecom').value = 30; document.getElementById('inp_margin_store').value = 40; document.getElementById('inp_service').value = 0;
             document.getElementById('disp_net_ecom').innerText = "Kar: 0.00 ₺";
             document.getElementById('disp_net_store').innerText = "Kar: 0.00 ₺";
             
@@ -1012,7 +1127,7 @@
             document.getElementById('inp_id').value = p.id; document.getElementById('inp_cat').value = p.cat; document.getElementById('inp_name').value = p.name;
             document.getElementById('inp_bar').value = p.bar || ""; document.getElementById('inp_manuf').value = p.manuf || ""; document.getElementById('inp_whole').value = p.whole || "";
             document.getElementById('inp_qty').value = p.qty || ""; document.getElementById('inp_buy').value = p.buy || ""; document.getElementById('inp_ship').value = p.ship || 83.93;
-            document.getElementById('inp_tax').value = p.tax || 20; document.getElementById('inp_comm').value = p.comm || 21; document.getElementById('inp_margin_ecom').value = p.marginEcom || 30;
+            document.getElementById('inp_tax').value = p.tax || 20; document.getElementById('inp_comm').value = p.comm || 21; document.getElementById('inp_margin_ecom').value = p.marginEcom || 30; document.getElementById('inp_service').value = p.service || 0;
             document.getElementById('inp_margin_store').value = p.marginStore || 40; document.getElementById('inp_pub').checked = p.pub !== false; document.getElementById('inp_imgFile').value = "";
             
             if(p.sellEcom) document.getElementById('inp_sell_ecom').value = parseFloat(p.sellEcom).toFixed(2);
@@ -2311,7 +2426,7 @@
             cat: document.getElementById('inp_cat').value, name: document.getElementById('inp_name').value, bar: document.getElementById('inp_bar').value,
             manuf: document.getElementById('inp_manuf').value, whole: document.getElementById('inp_whole').value, qty: document.getElementById('inp_qty').value || 0,
             buy: calc.buy || 0, ship: parseFloat(document.getElementById('inp_ship').value) || 0, tax: parseFloat(document.getElementById('inp_tax').value) || 0,
-            comm: parseFloat(document.getElementById('inp_comm').value) || 0, marginEcom: (calc.marginEcom || 0) * 100, marginStore: (calc.marginStore || 0) * 100,
+            comm: parseFloat(document.getElementById('inp_comm').value) || 0, marginEcom: (calc.marginEcom || 0) * 100, marginStore: (calc.marginStore || 0) * 100,service: parseFloat(document.getElementById('inp_service').value) || 0,
             pub: document.getElementById('inp_pub').checked, sellEcom: calc.sellEcom || 0, netEcom: calc.netEcom || 0, costEcom: calc.costEcom || 0, 
             breakEvenEcom: calc.breakEvenEcom || 0, shipInc: calc.shipInc || 0, commAmount: calc.commAmount || 0, sellStore: calc.sellStore || 0, 
             netStore: calc.netStore || 0, costStore: calc.costStore || 0, breakEvenStore: calc.breakEvenStore || 0, img: finalImgUrl,
