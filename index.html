@@ -340,11 +340,19 @@
                         <div class="bg-light p-3 rounded border">
                             <label class="small fw-bold text-secondary mb-2"><i class="fas fa-cog"></i> Sepet Genel Ayarları</label>
                             
+                            <label class="small text-muted fw-bold mb-1"><i class="fas fa-link"></i> Tanımlı Kuralları Uygula</label>
+                            <select id="basket_platform" class="form-select form-select-sm border-primary fw-bold text-primary mb-2" onchange="applyBasketPlatformRule()">
+                                <option value="">-- Özel Değerler / Manuel Giriş --</option>
+                            </select>
+
                             <label class="small text-muted fw-bold">Toplam Kargo Gideri (KDV'siz)</label>
                             <input type="number" id="basket_ship" class="form-control form-control-sm mb-2" value="83.93" oninput="renderBasket()">
                             
                             <label class="small text-muted fw-bold">E-Ticaret Komisyonu %</label>
                             <input type="number" id="basket_comm" class="form-control form-control-sm mb-2" value="21" oninput="renderBasket()">
+                            
+                            <label class="small text-muted fw-bold">Hizmet Bedeli (₺)</label>
+                            <input type="number" id="basket_service" class="form-control form-control-sm mb-2" value="0" placeholder="KDV'siz" oninput="renderBasket()">
                             
                             <label class="small text-muted fw-bold">Genel KDV Oranı %</label>
                             <input type="number" id="basket_tax" class="form-control form-control-sm" value="20" oninput="renderBasket()">
@@ -826,15 +834,31 @@ function deletePlatformRule(idx) {
     }
 }
 
+// MEVCUT FONKSİYONU ŞUNUNLA DEĞİŞTİRİN:
 function populatePlatformSelect() {
-    var select = document.getElementById('inp_platform');
-    if(!select) return;
+    var selectProduct = document.getElementById('inp_platform');
+    var selectBasket = document.getElementById('basket_platform'); // Sepet dropdown'u eklendi
     
-    select.innerHTML = '<option value="">-- Özel Değerler / Manuel Giriş --</option>';
-    
+    var optionsHtml = '<option value="">-- Özel Değerler / Manuel Giriş --</option>';
     platformRules.forEach((rule, idx) => {
-        select.innerHTML += `<option value="${idx}">${rule.name} (Komisyon: %${rule.comm} | Hizmet: ${rule.service}₺)</option>`;
+        optionsHtml += `<option value="${idx}">${rule.name} (Komisyon: %${rule.comm} | Hizmet: ${rule.service}₺)</option>`;
     });
+
+    if(selectProduct) selectProduct.innerHTML = optionsHtml;
+    if(selectBasket) selectBasket.innerHTML = optionsHtml;
+}
+
+// YENİ FONKSİYON OLARAK EKLEYİN:
+function applyBasketPlatformRule() {
+    var selectVal = document.getElementById('basket_platform').value;
+    if(selectVal === "") return; 
+    
+    var rule = platformRules[parseInt(selectVal)];
+    if(rule) {
+        document.getElementById('basket_comm').value = rule.comm;
+        document.getElementById('basket_service').value = rule.service;
+        renderBasket(); // Sepeti yeni değerlerle tekrar hesapla
+    }
 }
 
 function applyPlatformRule() {
@@ -1872,12 +1896,19 @@ function importPlatformSettingsCSV(input) {
         
         var shipInc = shipEx * taxFactor;
         
-        // Kargo değiştiği için sepetin toplam e-ticaret maliyetini anlık güncelle
-        var currentBasketEcomCost = totalBasketBuyCost + shipInc;
+        // YENİ EKLENEN: Hizmet Bedeli Hesaplaması
+        var serviceEx = parseFloat(document.getElementById('basket_service').value) || 0;
+        var serviceInc = serviceEx * taxFactor;
+
+        // GÜNCELLENEN: Kargo ve Hizmet Bedeli eklendiği için toplam e-ticaret maliyetini güncelle
+        var currentBasketEcomCost = totalBasketBuyCost + shipInc + serviceInc;
 
         var vatInputProducts = totalBasketBuyCost - (totalBasketBuyCost / taxFactor);
         var vatInputCargo = shipInc - shipEx;
-        var vatInputEcom = vatInputProducts + vatInputCargo;
+        var vatInputService = serviceInc - serviceEx; // YENİ EKLENEN: Hizmet Bedeli KDV'si
+        
+        // GÜNCELLENEN: Toplam e-ticaret KDV matrahına Hizmet Bedeli KDV'si dahil edildi
+        var vatInputEcom = vatInputProducts + vatInputCargo + vatInputService;
         var vatInputStore = vatInputProducts; 
 
         // Ekrandaki Kargo (KDV'siz/KDV'li) metnini canlı güncelle
