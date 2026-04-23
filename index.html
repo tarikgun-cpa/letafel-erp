@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LETAFEL KOZMETİK ERP & KATALOG V32 ULTIMATE</title>
-    
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><path fill='%23A2B9A6' d='M256 32c14.2 0 27.3 7.5 34.5 19.8l216 368c7.3 12.4 7.3 27.7 .2 40.1S486.3 480 472 480H40c-14.3 0-27.6-7.7-34.7-20.1s-7-27.8 .2-40.1l216-368C228.7 39.5 241.8 32 256 32zm0 128c-53 0-96 43-96 96s43 96 96 96 96-43 96-96-43-96-96-96z'/></svg>">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
@@ -476,6 +476,17 @@
             <div class="card-custom border-secondary h-100">
                 <div class="card-head bg-secondary text-white"><i class="fas fa-sliders-h me-2"></i> Sistem Ayarları</div>
                 <div class="card-body">
+                    <div id="entrepreneur-tracker" class="alert alert-info p-2 mb-3 shadow-sm" style="display:none;">
+                        <div class="small fw-bold mb-1"><i class="fas fa-chart-line"></i> Kadın Girişimci Kotası (200.000 ₺)</div>
+                        <div class="progress mb-1" style="height: 10px;">
+                            <div id="limit-progress-bar" class="progress-bar bg-info" style="width: 0%;"></div>
+                        </div>
+                        <div class="d-flex justify-content-between small fw-bold">
+                            <span id="limit-current-text" class="text-dark">0 ₺</span>
+                            <span class="text-muted">200.000 ₺</span>
+                        </div>
+                    </div>
+
                     <label class="small fw-bold text-muted mb-1">Satıcı Tipi / Profiliniz</label>
                     <select id="setting_seller_type" class="form-select mb-3 fw-bold" onchange="saveGlobalSettings()">
                         <option value="STANDART">Standart Satıcı</option>
@@ -483,22 +494,26 @@
                     </select>
                     
                     <hr>
-                    <h6 class="fw-bold"><i class="fas fa-plus"></i> Yeni Platform / Kural Ekle</h6>
+                    <h6 class="fw-bold"><i class="fas fa-plus"></i> Yeni Platform / Kural Ekle veya Güncelle</h6>
+                    <input type="hidden" id="edit_rule_idx" value="-1">
                     <input type="text" id="set_plat_name" class="form-control form-control-sm mb-2" placeholder="Platform Adı (Örn: Trendyol)">
                     <div class="row g-2 mb-2">
                         <div class="col-6"><input type="number" id="set_plat_comm" class="form-control form-control-sm" placeholder="Komisyon %"></div>
                         <div class="col-6"><input type="number" id="set_plat_service" class="form-control form-control-sm" placeholder="Hizmet Bedeli ₺"></div>
                     </div>
-                    <button class="btn btn-sm btn-secondary w-100 fw-bold" onclick="addPlatformRule()">KURALI EKLE</button>
+                    <button id="btn-save-rule" class="btn btn-sm btn-secondary w-100 fw-bold" onclick="addPlatformRule()">KURALI EKLE</button>
                     
                     <hr>
-                    <label class="btn btn-sm btn-outline-success w-100 fw-bold mt-2" style="cursor: pointer;">
-                        <i class="fas fa-file-excel"></i> Excel'den Kuralları Yükle
-                        <input type="file" accept=".csv" style="display:none;" onchange="importPlatformSettingsCSV(this)">
-                    </label>
+                    <div class="d-flex gap-2 mt-2">
+                        <button class="btn btn-sm btn-outline-info w-50 fw-bold" onclick="downloadPlatformRulesCSVTemplate()">
+                            <i class="fas fa-download"></i> Şablon
+                        </button>
+                        <label class="btn btn-sm btn-outline-success w-50 fw-bold mb-0" style="cursor: pointer;">
+                            <i class="fas fa-file-excel"></i> Yükle
+                            <input type="file" accept=".csv" style="display:none;" onchange="importPlatformSettingsCSV(this)">
+                        </label>
+                    </div>
                 </div>
-            </div>
-        </div>
         <div class="col-md-8">
             <div class="card-custom h-100">
                 <div class="card-head bg-dark text-white"><i class="fas fa-table me-2"></i> Tanımlı Komisyon ve Kesinti Kuralları</div>
@@ -571,23 +586,31 @@
             <div class="col-md-6 border-start bg-white p-3 rounded shadow-sm">
                 <label class="small fw-bold text-secondary mb-1">3. Maliyet ve Satış Ayarları</label>
                 <div class="bg-light p-2 rounded border mb-2">
+                    
+                    <div class="mb-2 border-bottom pb-2">
+                        <label class="small text-muted fw-bold mb-1"><i class="fas fa-link"></i> Tanımlı Kuralları Uygula</label>
+                        <select id="inp_platform" class="form-select form-select-sm border-primary fw-bold text-primary" onchange="applyPlatformRule()">
+                            <option value="">-- Özel Değerler / Manuel Giriş --</option>
+                        </select>
+                    </div>
+
                     <div class="row g-2">
-    <div class="col-4">
-        <label class="small text-muted fw-bold">Kargo (KDV'siz)</label>
-        <input type="number" id="inp_ship" class="form-control form-control-sm" value="83.93" oninput="runCalcSafe('margin')">
-    </div>
-    <div class="col-4">
-        <label class="small text-muted fw-bold">E-Tic. Komisyon %</label>
-        <input type="number" id="inp_comm" class="form-control form-control-sm" value="21" oninput="runCalcSafe('margin')">
-    </div>
-    <div class="col-4">
-        <label class="small text-muted fw-bold">Hizmet Bedeli (₺)</label>
-        <input type="number" id="inp_service" class="form-control form-control-sm" value="0" placeholder="KDV'siz" oninput="runCalcSafe('margin')">
-    </div>
-    <div class="col-12 mt-2">
-        <label class="small text-muted fw-bold">KDV Oranı %</label>
-        <input type="number" id="inp_tax" class="form-control form-control-sm" value="20" oninput="runCalcSafe('margin')">
-    </div>
+                        <div class="col-4">
+                            <label class="small text-muted fw-bold">Kargo (KDV'siz)</label>
+                            <input type="number" id="inp_ship" class="form-control form-control-sm" value="83.93" oninput="runCalcSafe('margin')">
+                        </div>
+                        <div class="col-4">
+                            <label class="small text-muted fw-bold">E-Tic. Komisyon %</label>
+                            <input type="number" id="inp_comm" class="form-control form-control-sm" value="21" oninput="runCalcSafe('margin')">
+                        </div>
+                        <div class="col-4">
+                            <label class="small text-muted fw-bold">Hizmet Bedeli (₺)</label>
+                            <input type="number" id="inp_service" class="form-control form-control-sm" value="0" placeholder="KDV'siz" oninput="runCalcSafe('margin')">
+                        </div>
+                        <div class="col-12 mt-2">
+                            <label class="small text-muted fw-bold">KDV Oranı %</label>
+                            <input type="number" id="inp_tax" class="form-control form-control-sm" value="20" oninput="runCalcSafe('margin')">
+                        </div>
                         
                         <div class="col-6 mt-3">
                             <label class="small fw-bold text-danger">E-Ticaret Kar %</label>
@@ -719,18 +742,25 @@
     var activeBasketId = null;
 
     var PLACEHOLDER_IMG = "data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22160%22%20height%3D%22160%22%20style%3D%22background%3A%23eee%22%3E%3Ctext%20x%3D%2250%25%22%20y%3D%2250%25%22%20dominant-baseline%3D%22middle%22%20text-anchor%3D%22middle%22%20fill%3D%22%23999%22%20font-family%3D%22sans-serif%22%3EGORSEL YOK%3C%2Ftext%3E%3C%2Fsvg%3E";
-    var platformRules = [];
+    // ==========================================
+// AYARLAR, PLATFORM KURALLARI VE KOTA TAKİBİ
+// ==========================================
+var platformRules = [];
 
 function loadSettings() {
     var savedType = localStorage.getItem('sellerType') || 'STANDART';
     var savedRules = localStorage.getItem('platformRules');
     document.getElementById('setting_seller_type').value = savedType;
     if(savedRules) platformRules = JSON.parse(savedRules);
+    
     renderPlatformRules();
+    populatePlatformSelect();
+    checkEntrepreneurLimit();
 }
 
 function saveGlobalSettings() {
     localStorage.setItem('sellerType', document.getElementById('setting_seller_type').value);
+    checkEntrepreneurLimit(); 
 }
 
 function renderPlatformRules() {
@@ -742,26 +772,157 @@ function renderPlatformRules() {
             <td class="fw-bold">${rule.name}</td>
             <td class="text-danger">%${rule.comm}</td>
             <td class="text-warning">${rule.service} ₺</td>
-            <td class="text-end"><button class="btn btn-sm btn-outline-danger" onclick="deletePlatformRule(${idx})"><i class="fas fa-trash"></i></button></td>
+            <td class="text-end text-nowrap">
+                <button class="btn btn-sm btn-outline-primary" onclick="editPlatformRule(${idx})" title="Güncelle"><i class="fas fa-edit"></i></button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deletePlatformRule(${idx})" title="Sil"><i class="fas fa-trash"></i></button>
+            </td>
         </tr>`;
     });
+    populatePlatformSelect(); 
 }
 
 function addPlatformRule() {
-    var name = document.getElementById('set_plat_name').value;
+    var name = document.getElementById('set_plat_name').value.trim();
     var comm = parseFloat(document.getElementById('set_plat_comm').value) || 0;
     var service = parseFloat(document.getElementById('set_plat_service').value) || 0;
-    if(!name) return;
+    var editIdx = parseInt(document.getElementById('edit_rule_idx').value);
     
-    platformRules.push({ name: name, comm: comm, service: service });
+    if(!name) { alert("Lütfen platform adı girin."); return; }
+    
+    if(editIdx > -1) {
+        platformRules[editIdx] = { name: name, comm: comm, service: service }; 
+    } else {
+        platformRules.push({ name: name, comm: comm, service: service }); 
+    }
+    
     localStorage.setItem('platformRules', JSON.stringify(platformRules));
+    
+    document.getElementById('set_plat_name').value = "";
+    document.getElementById('set_plat_comm').value = "";
+    document.getElementById('set_plat_service').value = "";
+    document.getElementById('edit_rule_idx').value = "-1";
+    document.getElementById('btn-save-rule').innerHTML = "KURALI EKLE";
+    document.getElementById('btn-save-rule').className = "btn btn-sm btn-secondary w-100 fw-bold";
+    
     renderPlatformRules();
 }
 
+function editPlatformRule(idx) {
+    var rule = platformRules[idx];
+    document.getElementById('set_plat_name').value = rule.name;
+    document.getElementById('set_plat_comm').value = rule.comm;
+    document.getElementById('set_plat_service').value = rule.service;
+    document.getElementById('edit_rule_idx').value = idx;
+    
+    var btn = document.getElementById('btn-save-rule');
+    btn.innerHTML = "KURALI GÜNCELLE";
+    btn.className = "btn btn-sm btn-warning w-100 fw-bold text-dark";
+}
+
 function deletePlatformRule(idx) {
-    platformRules.splice(idx, 1);
-    localStorage.setItem('platformRules', JSON.stringify(platformRules));
-    renderPlatformRules();
+    if(confirm("Bu kuralı silmek istediğinize emin misiniz?")) {
+        platformRules.splice(idx, 1);
+        localStorage.setItem('platformRules', JSON.stringify(platformRules));
+        renderPlatformRules();
+    }
+}
+
+function populatePlatformSelect() {
+    var select = document.getElementById('inp_platform');
+    if(!select) return;
+    
+    select.innerHTML = '<option value="">-- Özel Değerler / Manuel Giriş --</option>';
+    
+    platformRules.forEach((rule, idx) => {
+        select.innerHTML += `<option value="${idx}">${rule.name} (Komisyon: %${rule.comm} | Hizmet: ${rule.service}₺)</option>`;
+    });
+}
+
+function applyPlatformRule() {
+    var selectVal = document.getElementById('inp_platform').value;
+    if(selectVal === "") return; 
+    
+    var rule = platformRules[parseInt(selectVal)];
+    if(rule) {
+        document.getElementById('inp_comm').value = rule.comm;
+        document.getElementById('inp_service').value = rule.service;
+        runCalcSafe('margin'); 
+    }
+}
+
+function checkEntrepreneurLimit() {
+    var sellerType = document.getElementById('setting_seller_type').value;
+    var trackerDiv = document.getElementById('entrepreneur-tracker');
+    
+    if (sellerType !== 'GIRISIMCI_KADIN') {
+        trackerDiv.style.display = 'none';
+        return;
+    }
+    
+    trackerDiv.style.display = 'block';
+    
+    var totalSales = 0;
+    txList.forEach(tx => {
+        if(tx.type === 'OUT' && tx.price > 0) {
+            totalSales += (tx.price * tx.qty);
+        }
+    });
+
+    var percentage = Math.min(100, (totalSales / 200000) * 100);
+    document.getElementById('limit-progress-bar').style.width = percentage + "%";
+    document.getElementById('limit-current-text').innerText = totalSales.toLocaleString('tr-TR', {minimumFractionDigits: 2}) + " ₺";
+    
+    if(percentage > 90) document.getElementById('limit-progress-bar').className = "progress-bar bg-danger";
+    else if(percentage > 70) document.getElementById('limit-progress-bar').className = "progress-bar bg-warning";
+    else document.getElementById('limit-progress-bar').className = "progress-bar bg-info";
+
+    if(totalSales >= 200000) {
+        alert("TEBRİKLER VE DİKKAT!\n\n200.000 ₺'lik Kadın Girişimci Satış Kotanızı doldurdunuz.\nSistem otomatik olarak 'Standart Satıcı' profiline geçiş yapacaktır. Yeni ürünlerinizde veya kurallarınızda standart komisyonlar geçerli olacaktır.");
+        document.getElementById('setting_seller_type').value = 'STANDART';
+        saveGlobalSettings();
+    }
+}
+
+function downloadPlatformRulesCSVTemplate() {
+    var csv = "\uFEFFPlatformAdi;KomisyonYuzdesi;HizmetBedeli\nTrendyol Giyim;21;15.5\nHepsiburada Kozmetik;15;0\n";
+    var link = document.createElement("a"); 
+    link.href = URL.createObjectURL(new Blob([csv], {type: 'text/csv;charset=utf-8;'})); 
+    link.download = "Letafel_Platform_Kurallari_Sablonu.csv"; 
+    link.click();
+}
+
+function importPlatformSettingsCSV(input) {
+    if (!input.files || !input.files[0]) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            var lines = e.target.result.split("\n");
+            var addedCount = 0;
+            
+            for(var i = 1; i < lines.length; i++) {
+                if(!lines[i].trim()) continue; 
+                var cols = lines[i].split(";"); 
+                if(cols.length < 3) continue; 
+                
+                var name = cols[0].trim();
+                var comm = parseFloat(cols[1].replace(',','.')) || 0;
+                var service = parseFloat(cols[2].replace(',','.')) || 0;
+                
+                if(name) {
+                    platformRules.push({ name: name, comm: comm, service: service });
+                    addedCount++;
+                }
+            }
+            
+            if(addedCount > 0) { 
+                localStorage.setItem('platformRules', JSON.stringify(platformRules));
+                renderPlatformRules();
+                alert(addedCount + " adet platform kuralı Excel'den başarıyla yüklendi."); 
+            }
+        } catch(err) { alert("Dosya formatı hatalı. Lütfen şablonu kullanın."); }
+        input.value = "";
+    };
+    reader.readAsText(input.files[0], "UTF-8");
 }
 
 // Sayfa yüklendiğinde ayarları çekmek için DOMContentLoaded içine ekleyin:
@@ -1279,6 +1440,7 @@ function deletePlatformRule(idx) {
                 
                 var msg = "İşlem Deftere Yazıldı! Yeni Stok: " + p.qty;
                 if(isPriceUpdated) msg += "\nFiyatlar ve maliyetler güncellendi.";
+                checkEntrepreneurLimit();
                 alert(msg);
             }
         } catch(e) {}
@@ -1811,6 +1973,7 @@ function deletePlatformRule(idx) {
         updateSelects(); // Diğer dropdownları güncelle
         
         if(sellBasketModalInstance) sellBasketModalInstance.hide();
+        checkEntrepreneurLimit();
         alert("Satış başarılı!\n\nPaket içerisindeki tüm ürünler stoklardan düşüldü ve İşlem Defterine kaydedildi.");
     }
 
