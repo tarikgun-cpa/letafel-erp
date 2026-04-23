@@ -1259,8 +1259,8 @@ function importPlatformSettingsCSV(input) {
                             '</div>' +
                         '</td>' +
                         '<td class="text-center p-3">' +
-                            '<button class="btn btn-sm btn-outline-secondary fw-bold mb-2 w-100" onclick="editItem(' + p.id + ')"><i class="fas fa-edit"></i> DÜZENLE</button>' +
-                            '<button class="btn btn-sm btn-outline-danger fw-bold w-100" onclick="deleteItem(' + p.id + ')"><i class="fas fa-trash"></i> SİL</button>' +
+                            '<button class="btn btn-sm btn-outline-secondary fw-bold mb-2 w-100" onclick="editItem(\'' + p.id + '\')"><i class="fas fa-edit"></i> DÜZENLE</button>' +
+                            '<button class="btn btn-sm btn-outline-danger fw-bold w-100" onclick="deleteItem(\'' + p.id + '\')"><i class="fas fa-trash"></i> SİL</button>' +
                         '</td>';
                     tbody.appendChild(tr);
                 } else {
@@ -1284,25 +1284,49 @@ function importPlatformSettingsCSV(input) {
                 if(productList[i] && productList[i].id == id) { p = productList[i]; break; }
             }
             if(!p) return;
+
+            document.getElementById('inp_id').value = p.id; 
+            document.getElementById('inp_cat').value = p.cat || ""; 
+            document.getElementById('inp_name').value = p.name || "";
+            document.getElementById('inp_bar').value = p.bar || ""; 
+            document.getElementById('inp_manuf').value = p.manuf || ""; 
+            document.getElementById('inp_whole').value = p.whole || "";
+            document.getElementById('inp_qty').value = p.qty || ""; 
+            document.getElementById('inp_buy').value = p.buy || ""; 
             
-            document.getElementById('inp_id').value = p.id; document.getElementById('inp_cat').value = p.cat; document.getElementById('inp_name').value = p.name;
-            document.getElementById('inp_bar').value = p.bar || ""; document.getElementById('inp_manuf').value = p.manuf || ""; document.getElementById('inp_whole').value = p.whole || "";
-            document.getElementById('inp_qty').value = p.qty || ""; document.getElementById('inp_buy').value = p.buy || ""; document.getElementById('inp_ship').value = p.ship || 83.93;
-            document.getElementById('inp_tax').value = p.tax || 20; document.getElementById('inp_comm').value = p.comm || 21; document.getElementById('inp_margin_ecom').value = p.marginEcom || 30; document.getElementById('inp_service').value = p.service || 0;
-            document.getElementById('inp_margin_store').value = p.marginStore || 40; document.getElementById('inp_pub').checked = p.pub !== false; document.getElementById('inp_imgFile').value = "";
+            // 0 değerlerinin silinip yerine varsayılan atamasını engellemek için güvenlik kontrolleri:
+            document.getElementById('inp_ship').value = p.ship !== undefined ? p.ship : 83.93;
+            document.getElementById('inp_tax').value = p.tax !== undefined ? p.tax : 20; 
+            document.getElementById('inp_comm').value = p.comm !== undefined ? p.comm : 21; 
+            document.getElementById('inp_margin_ecom').value = p.marginEcom !== undefined ? p.marginEcom : 30; 
+            document.getElementById('inp_service').value = p.service !== undefined ? p.service : 0;
+            document.getElementById('inp_margin_store').value = p.marginStore !== undefined ? p.marginStore : 40; 
             
-            if(p.sellEcom) document.getElementById('inp_sell_ecom').value = parseFloat(p.sellEcom).toFixed(2);
-            if(p.sellStore) document.getElementById('inp_sell_store').value = parseFloat(p.sellStore).toFixed(2);
+            document.getElementById('inp_pub').checked = p.pub !== false; 
+            document.getElementById('inp_imgFile').value = "";
+
+            if(p.sellEcom !== undefined && p.sellEcom !== null && p.sellEcom !== "") document.getElementById('inp_sell_ecom').value = parseFloat(p.sellEcom).toFixed(2);
+            else document.getElementById('inp_sell_ecom').value = "";
             
+            if(p.sellStore !== undefined && p.sellStore !== null && p.sellStore !== "") document.getElementById('inp_sell_store').value = parseFloat(p.sellStore).toFixed(2);
+            else document.getElementById('inp_sell_store').value = "";
+
             document.getElementById('inp_comp_ty').value = p.comp_ty || "";
             document.getElementById('inp_comp_hb').value = p.comp_hb || "";
             document.getElementById('inp_comp_amz').value = p.comp_amz || "";
             document.getElementById('inp_comp_cs').value = p.comp_cs || "";
             document.getElementById('inp_comp_ig').value = p.comp_ig || "";
-            
+
             runCalcSafe('margin'); 
-            if(modalInstance) modalInstance.show(); else document.getElementById('productModal').style.display='block';
-        } catch(e) {}
+            
+            if(modalInstance) modalInstance.show(); 
+            else document.getElementById('productModal').style.display='block';
+            
+        } catch(e) {
+            // Sessizce donmak yerine hatanın tam olarak nerede olduğunu ekrana yazdırır
+            alert("Düzenleme ekranı açılırken bir hata oluştu!\n\nHata Detayı: " + e.message);
+            console.error("EditItem Hatası:", e);
+        }
     }
 
     function deleteItem(id) { 
