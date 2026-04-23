@@ -103,6 +103,43 @@
         .js-capturing .katalog-admin-panel, .js-capturing .ui-hide-on-capture, .js-capturing .delete-product-btn, .js-capturing .badge-selector { display: none !important; }
         .js-capturing .logo-box { border: none !important; }
         .js-capturing .page-wrapper { margin: 0 !important; box-shadow: none !important; }
+
+        /* 1. ÖZEL VE ZARİF KAYDIRMA ÇUBUKLARI (SCROLLBAR) */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 10px; opacity: 0.8; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--primary-dark); }
+
+        /* 2. SERT BOOTSTRAP RENKLERİNİ PASTEL TONLARA YUMUŞATMA */
+        .bg-danger { background-color: #FDF2F3 !important; color: #d9534f !important; border: 1px solid #fbc9ce; }
+        .text-white.bg-danger { color: #d9534f !important; } /* Başlıklar için düzeltme */
+        
+        .bg-success { background-color: #F2F8F4 !important; color: #438a43 !important; border: 1px solid #c3e6cb; }
+        .text-white.bg-success { color: #438a43 !important; }
+        
+        .bg-warning { background-color: #FFFDF5 !important; color: #a67c00 !important; border: 1px solid #ffeeba; }
+        
+        .bg-info { background-color: #F0F8FA !important; color: #31708f !important; border: 1px solid #bce8f1; }
+
+        /* 3. TABLO SATIRLARINA ZARİF BİR HOVER (ÜZERİNE GELİNCE) EFEKTİ */
+        .table-hover tbody tr:hover {
+            background-color: #f4f7f5 !important; /* Temanızın açık yeşiline uygun çok hafif bir ton */
+            transition: background-color 0.2s ease;
+        }
+
+        /* 4. BUTONLARI YUMUŞATMA VE KÖŞELERİ YUVARLAMA */
+        .btn { border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        
+        /* 5. INPUT VE SELECT KUTULARINI DAHA MODERN YAPMA */
+        .form-control, .form-select {
+            border-radius: 8px;
+            border: 1px solid #e1e1e1;
+            background-color: #FDFDFD;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 0.25rem rgba(162, 185, 166, 0.25); /* Pastel yeşil parlama */
+        }
     </style>
 </head>
 <body>
@@ -402,6 +439,7 @@
                                         <li class="list-group-item d-flex justify-content-between"><span>Ürünler KDV Tutarı:</span> <span id="det_buy_vat" class="fw-bold">0.00 ₺</span></li>
                                         <li class="list-group-item d-flex justify-content-between bg-white text-dark"><span>Ürünler Toplamı (KDV'li):</span> <span id="det_buy_total" class="fw-bold text-dark">0.00 ₺</span></li>
                                         <li class="list-group-item d-flex justify-content-between"><span>Kargo (KDV'siz / KDV'li):</span> <span id="det_cargo_total" class="fw-bold text-warning">0.00 ₺ / 0.00 ₺</span></li>
+                                        <li class="list-group-item d-flex justify-content-between"><span>Hizmet Bedeli (KDV'siz / KDV'li):</span> <span id="det_service_total" class="fw-bold" style="color: var(--accent-dark);">0.00 ₺ / 0.00 ₺</span></li>
                                         <li class="list-group-item d-flex justify-content-between text-danger"><span>Tahmini Komisyon Kesintisi:</span> <span id="det_comm_total" class="fw-bold">0.00 ₺</span></li>
                                     </ul>
                                 </div>
@@ -1914,6 +1952,9 @@ function importPlatformSettingsCSV(input) {
         // Ekrandaki Kargo (KDV'siz/KDV'li) metnini canlı güncelle
         var cargoTextEl = document.getElementById('det_cargo_total');
         if(cargoTextEl) cargoTextEl.innerText = shipEx.toFixed(2) + " ₺ / " + shipInc.toFixed(2) + " ₺";
+        // Ekrandaki Hizmet Bedeli metnini canlı güncelle
+        var serviceTextEl = document.getElementById('det_service_total');
+        if(serviceTextEl) serviceTextEl.innerText = serviceEx.toFixed(2) + " ₺ / " + serviceInc.toFixed(2) + " ₺";
 
         // 1. E-TİCARET KÂRI HESAPLAMA
         var commAmount = 0, vatOutEcom = 0, vatPayEcom = 0, netEcom = 0;
