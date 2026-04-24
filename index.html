@@ -621,6 +621,15 @@
                 <div class="row g-2 mb-2">
                     <div class="col-6"><input type="text" id="inp_whole" class="form-control form-control-sm" placeholder="Toptancı"></div>
                     <div class="col-6"><input type="number" id="inp_qty" class="form-control form-control-sm" placeholder="Stok Adedi (Boş bırakılabilir)"></div>
+                    <div class="col-12 mt-3">
+    <label class="small fw-bold text-secondary d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-layer-group"></i> Varyant Kırılımı (Renk/Kod)</span>
+        <button type="button" class="btn btn-sm btn-outline-primary py-0" style="font-size: 0.7rem;" onclick="addVariantRow()">+ Varyant Ekle</button>
+    </label>
+    <div id="variant_container" class="mt-2 border rounded p-2 bg-white" style="max-height: 150px; overflow-y: auto;">
+        </div>
+    <div class="small text-muted mt-1" style="font-size: 0.7rem;">* Varyant adetleri girildiğinde toplam stok otomatik hesaplanır.</div>
+</div>
                 </div>
                 
                 <label class="small fw-bold text-danger mt-2 mb-1">Birim Alış Fiyatı (KDV Dahil)</label>
@@ -1220,7 +1229,7 @@ function importPlatformSettingsCSV(input) {
         try {
             var ids = ['inp_id','inp_name','inp_buy','inp_qty','inp_bar','inp_manuf','inp_whole','inp_imgFile', 'inp_sell_ecom', 'inp_sell_store', 'inp_comp_ty', 'inp_comp_hb', 'inp_comp_amz', 'inp_comp_cs', 'inp_comp_ig'];
             for(var i = 0; i < ids.length; i++) { var elem = document.getElementById(ids[i]); if(elem) elem.value = ""; }
-            
+            document.getElementById('variant_container').innerHTML = "";
             document.getElementById('inp_ship').value = 83.93; document.getElementById('inp_tax').value = 20;
             document.getElementById('inp_comm').value = 21; document.getElementById('inp_margin_ecom').value = 30; document.getElementById('inp_margin_store').value = 40; document.getElementById('inp_service').value = 0;
             document.getElementById('disp_net_ecom').innerText = "Kar: 0.00 ₺";
@@ -1307,7 +1316,22 @@ function importPlatformSettingsCSV(input) {
                                 '<div><i class="fas fa-truck text-secondary"></i> Tedarik: <b>' + (p.whole || '-') + '</b></div>' +
                             '</div>' +
                         '</td>' +
-                        '<td>' + pubBadge + '<div class="badge bg-white text-dark border mt-2 w-100 py-2 shadow-sm" style="font-size: 0.85rem;">Stok: ' + qty + '</div></td>' +
+                        '<td>' + 
+                            pubBadge + 
+                            '<div class="badge bg-white text-dark border mt-2 w-100 py-2 shadow-sm" style="font-size: 0.85rem;">Toplam: ' + qty + '</div>' +
+                            (function() {
+                                // Varyant detaylarını küçük bir liste olarak ekle
+                                var variantHtml = "";
+                                if(p.variants && p.variants.length > 0) {
+                                    variantHtml = '<div class="mt-2 p-1 bg-light rounded border" style="font-size:0.65rem; line-height:1.2;">';
+                                    p.variants.forEach(v => {
+                                        variantHtml += '<div class="d-flex justify-content-between px-1 border-bottom mb-1 pb-1"><span>' + v.name + ':</span> <span class="fw-bold text-primary">' + v.qty + '</span></div>';
+                                    });
+                                    variantHtml += '</div>';
+                                }
+                                return variantHtml;
+                            })() +
+                        '</td>' +
                         '<td class="bg-white border rounded shadow-sm p-3">' +
                             '<div class="detail-row"><span>Alış Fiyatı:</span> <span>' + parseFloat(p.buy).toFixed(2) + ' ₺</span></div>' +
                             '<div class="detail-row"><span>Kargo:</span> <span>' + (p.shipInc || 0).toFixed(2) + ' ₺</span></div>' +
@@ -1383,7 +1407,10 @@ function importPlatformSettingsCSV(input) {
             document.getElementById('inp_margin_ecom').value = p.marginEcom !== undefined ? p.marginEcom : 30; 
             document.getElementById('inp_service').value = p.service !== undefined ? p.service : 0;
             document.getElementById('inp_margin_store').value = p.marginStore !== undefined ? p.marginStore : 40; 
-            
+            document.getElementById('variant_container').innerHTML = "";
+if(p.variants && p.variants.length > 0) {
+    p.variants.forEach(v => addVariantRow(v.name, v.qty));
+}
             document.getElementById('inp_pub').checked = p.pub !== false; 
             document.getElementById('inp_imgFile').value = "";
 
@@ -2612,6 +2639,29 @@ function importPlatformSettingsCSV(input) {
     function handleLogout() {
         if(confirm("Oturumu kapatmak istediğinize emin misiniz?")) { window.fbSignOut(window.auth).then(() => { location.reload(); }); }
     }
+    function addVariantRow(name = "", qty = "") {
+    const container = document.getElementById('variant_container');
+    const div = document.createElement('div');
+    div.className = "input-group input-group-sm mb-1 variant-row";
+    div.innerHTML = `
+        <input type="text" class="form-control fw-bold v-name" placeholder="Renk/Kod (Örn: Renk 01)" value="${name}">
+        <input type="number" class="form-control text-center v-qty" placeholder="Adet" value="${qty}" oninput="syncVariantTotal()" style="max-width: 80px;">
+        <button class="btn btn-outline-danger" type="button" onclick="this.parentElement.remove(); syncVariantTotal();"><i class="fas fa-times"></i></button>
+    `;
+    container.appendChild(div);
+}
+
+function syncVariantTotal() {
+    let total = 0;
+    const rows = document.querySelectorAll('.variant-row');
+    rows.forEach(row => {
+        total += parseInt(row.querySelector('.v-qty').value) || 0;
+    });
+    // Eğer varyant varsa, ana stok kutusunu kilitleyip toplamı yazalım
+    if(rows.length > 0) {
+        document.getElementById('inp_qty').value = total;
+    }
+}
 
 </script>
 <script type="module">
@@ -2703,7 +2753,10 @@ function importPlatformSettingsCSV(input) {
             finalImgUrl = await window.fbGetDownloadURL(imageRef);
         }
 
-        var item = {
+        var item = {variants: Array.from(document.querySelectorAll('.variant-row')).map(row => ({
+    name: row.querySelector('.v-name').value,
+    qty: parseInt(row.querySelector('.v-qty').value) || 0
+})).filter(v => v.name !== ""),
             id: editId ? parseInt(editId) : Date.now(),
             cat: document.getElementById('inp_cat').value, name: document.getElementById('inp_name').value, bar: document.getElementById('inp_bar').value,
             manuf: document.getElementById('inp_manuf').value, whole: document.getElementById('inp_whole').value, qty: document.getElementById('inp_qty').value || 0,minQty: parseInt(document.getElementById('inp_min_qty').value) || 1,
@@ -2715,6 +2768,7 @@ function importPlatformSettingsCSV(input) {
             comp_ty: parseFloat(document.getElementById('inp_comp_ty').value) || null, comp_hb: parseFloat(document.getElementById('inp_comp_hb').value) || null,
             comp_amz: parseFloat(document.getElementById('inp_comp_amz').value) || null, comp_cs: parseFloat(document.getElementById('inp_comp_cs').value) || null,
             comp_ig: parseFloat(document.getElementById('inp_comp_ig').value) || null
+            
         };
 
         // Ürün listede var mı diye bul, varsa Firebase ID'sini (fbId) al
