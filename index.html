@@ -2044,9 +2044,14 @@ if(p.variants && p.variants.length > 0) {
         var taxRate = parseFloat(document.getElementById('basket_tax').value) || 20;
         var taxFactor = 1 + (taxRate / 100);
 
+        // --- YENİ EKLENEN: Önerilen Fiyat Toplamları ---
+        var totalRecEcom = 0; 
+        var totalRecStore = 0; 
+
         // Boş ise 7 sütunluk colspan atarız
         if(basketList.length === 0) {
             tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Henüz sepete ürün eklenmedi.</td></tr>';
+            updateSuggestions(0, 0); // Sepet boşsa önerileri gizle
             calcBasketProfit();
             return;
         }
@@ -2059,15 +2064,22 @@ if(p.variants && p.variants.length > 0) {
             totalBasketBuyCost += lineTotal;
             totalVatInput += (lineTotal - (lineTotal / taxFactor));
 
-            // YENİ: PİYASA VE TAVSİYE FİYATLARINI OLUŞTURMA
+            // --- YENİ EKLENEN: Bireysel perakende fiyatlarını sepet adetleriyle çarpıp topla ---
+            totalRecEcom += (parseFloat(p.sellEcom) || parseFloat(p.buy) || 0) * item.qty;
+            totalRecStore += (parseFloat(p.sellStore) || parseFloat(p.buy) || 0) * item.qty;
+
+            // --- 1. İSTEK (ÇÖZÜM): Varyant bilgisini ürün isminin yanına şık bir etiketle ekle ---
+            var pNameDisplay = p.name;
+            if(item.variant) {
+                pNameDisplay += ' <span class="badge bg-info text-dark ms-1 shadow-sm" style="font-size:0.75rem;"><i class="fas fa-tag"></i> ' + item.variant + '</span>';
+            }
+
+            // PİYASA VE TAVSİYE FİYATLARINI OLUŞTURMA
             var marketInfo = '<div style="font-size:0.75rem; line-height:1.4;">';
-            
-            // 1. Sistemdeki Tavsiye Edilen Satış Fiyatlarımız
             if (p.sellEcom || p.sellStore) {
                 marketInfo += '<div class="fw-bold"><span class="text-danger">E: ' + (parseFloat(p.sellEcom)||0).toFixed(2) + '₺</span> | <span class="text-success">M: ' + (parseFloat(p.sellStore)||0).toFixed(2) + '₺</span></div>';
             }
             
-            // 2. Rakiplerin Fiyatları
             var comps = [];
             if (p.comp_ty) comps.push('TY: ' + parseFloat(p.comp_ty).toFixed(2));
             if (p.comp_hb) comps.push('HB: ' + parseFloat(p.comp_hb).toFixed(2));
@@ -2085,7 +2097,7 @@ if(p.variants && p.variants.length > 0) {
             tbody.innerHTML += 
                 '<tr>' +
                     '<td><img src="' + displayImg + '" class="thumb-sm"></td>' +
-                    '<td class="fw-bold text-dark">' + p.name + '</td>' +
+                    '<td class="fw-bold text-dark">' + pNameDisplay + '</td>' + // YENİ VARYANTLI İSİM
                     '<td class="text-center fw-bold">' + item.qty + '</td>' +
                     '<td>' + parseFloat(p.buy).toFixed(2) + ' ₺</td>' +
                     '<td>' + marketInfo + '</td>' +
@@ -2108,7 +2120,51 @@ if(p.variants && p.variants.length > 0) {
         document.getElementById('det_buy_total').innerText = totalBasketBuyCost.toFixed(2) + " ₺";
         document.getElementById('det_cargo_total').innerText = shipEx.toFixed(2) + " ₺ / " + shipInc.toFixed(2) + " ₺";
 
+        // --- 2. İSTEK (ÇÖZÜM): Fiyat önerilerini ekrana yansıt ---
+        updateSuggestions(totalRecEcom, totalRecStore);
+
         calcBasketProfit(); 
+    }
+
+    // --- 2. İSTEK İÇİN YARDIMCI FONKSİYON: Önerilen Fiyatları Kutuların Altına Yazar ---
+    function updateSuggestions(recEcom, recStore) {
+        // E-TİCARET Önerisi
+        var ecomInput = document.getElementById('basket_sell_ecom');
+        var ecomSugg = document.getElementById('sugg_ecom');
+        if(!ecomSugg) {
+            ecomSugg = document.createElement('div');
+            ecomSugg.id = 'sugg_ecom';
+            ecomSugg.className = 'small fw-bold text-primary mt-1 mb-2 text-center';
+            ecomSugg.style.cursor = 'pointer';
+            ecomSugg.style.fontSize = '0.75rem';
+            ecomInput.parentElement.insertAdjacentElement('afterend', ecomSugg);
+        }
+        if(recEcom > 0) {
+            ecomSugg.innerHTML = '<i class="fas fa-magic"></i> Önerilen: <span style="text-decoration: underline;" title="Otomatik uygulamak için tıklayın">' + recEcom.toFixed(2) + ' ₺</span>';
+            // Tıklayınca kutuya otomatik doldurur
+            ecomSugg.onclick = function() { ecomInput.value = recEcom.toFixed(2); calcBasketProfit(); };
+        } else {
+            ecomSugg.innerHTML = '';
+        }
+
+        // MAĞAZA Önerisi
+        var storeInput = document.getElementById('basket_sell_store');
+        var storeSugg = document.getElementById('sugg_store');
+        if(!storeSugg) {
+            storeSugg = document.createElement('div');
+            storeSugg.id = 'sugg_store';
+            storeSugg.className = 'small fw-bold text-primary mt-1 mb-2 text-center';
+            storeSugg.style.cursor = 'pointer';
+            storeSugg.style.fontSize = '0.75rem';
+            storeInput.parentElement.insertAdjacentElement('afterend', storeSugg);
+        }
+        if(recStore > 0) {
+            storeSugg.innerHTML = '<i class="fas fa-magic"></i> Önerilen: <span style="text-decoration: underline;" title="Otomatik uygulamak için tıklayın">' + recStore.toFixed(2) + ' ₺</span>';
+            // Tıklayınca kutuya otomatik doldurur
+            storeSugg.onclick = function() { storeInput.value = recStore.toFixed(2); calcBasketProfit(); };
+        } else {
+            storeSugg.innerHTML = '';
+        }
     }
 
     function calcBasketProfit() {
@@ -2497,10 +2553,16 @@ if(p.variants && p.variants.length > 0) {
             var tBody = []; var headParams = [];
             if(mode === 'customer') {
                 headParams = [['Gorsel', 'Urun Detayi', 'Paket İci Adet']];
-                basketList.forEach(item => tBody.push(["", toEn(item.p.name) + "\nBarkod: " + (item.p.bar||''), item.qty + " Adet"]));
+                basketList.forEach(item => {
+                    var vText = item.variant ? " (" + item.variant + ")" : ""; // YENİ: Varyant
+                    tBody.push(["", toEn(item.p.name) + vText + "\nBarkod: " + (item.p.bar||''), item.qty + " Adet"]);
+                });
             } else {
                 headParams = [['Gorsel', 'Urun Detayi', 'Adet', 'Birim Alis', 'Toplam Maliyet']];
-                basketList.forEach(item => tBody.push(["", toEn(item.p.name), item.qty + " Adet", parseFloat(item.p.buy).toFixed(2) + " TL", (item.p.buy * item.qty).toFixed(2) + " TL"]));
+                basketList.forEach(item => {
+                    var vText = item.variant ? " (" + item.variant + ")" : ""; // YENİ: Varyant
+                    tBody.push(["", toEn(item.p.name) + vText, item.qty + " Adet", parseFloat(item.p.buy).toFixed(2) + " TL", (item.p.buy * item.qty).toFixed(2) + " TL"]);
+                });
             }
 
             // Resimleri önceden yükle (GÜVENLİ)
