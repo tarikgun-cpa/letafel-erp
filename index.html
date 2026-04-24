@@ -1824,7 +1824,8 @@ if(p.variants && p.variants.length > 0) {
         b.items.forEach(function(item) {
             var p = productList.find(function(x) { return x.id == item.pid; });
             if(p) {
-                basketList.push({ p: p, qty: item.qty });
+                // ÇÖZÜM: variant verisini de basketList'e ekliyoruz
+                basketList.push({ p: p, qty: item.qty, variant: item.variant }); 
             } else {
                 missingItems = true;
             }
