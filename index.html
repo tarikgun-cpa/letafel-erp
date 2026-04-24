@@ -182,6 +182,7 @@
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav mx-auto gap-3">
+                <li class="nav-item"><a class="nav-link text-success" onclick="switchModule('mod-ozet', this); renderDashboard();"><i class="fas fa-chart-pie me-1"></i> Finans & Özet</a></li>
                 <li class="nav-item"><a class="nav-link active" onclick="switchModule('mod-stok', this)"><i class="fas fa-boxes me-1"></i> Stok (Envanter) Listesi</a></li>
                 <li class="nav-item"><a class="nav-link" onclick="switchModule('mod-islem', this)"><i class="fas fa-exchange-alt me-1"></i> İşlemler (Alım / Satım)</a></li>
                 <li class="nav-item"><a class="nav-link text-danger" onclick="switchModule('mod-tukenler', this)"><i class="fas fa-exclamation-circle me-1"></i> Tükenenler</a></li>
@@ -195,7 +196,71 @@
 </nav>
 
 <div class="container-fluid px-4">
+<div id="mod-ozet" class="app-module">
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="card-custom bg-primary text-white p-3 h-100 shadow-sm">
+                    <h6 class="fw-bold mb-1"><i class="fas fa-boxes"></i> Toplam Ürün Çeşidi</h6>
+                    <h3 class="mb-0" id="dash_total_products">0</h3>
+                    <div class="small mt-2 opacity-75" id="dash_total_stock">Toplam Stok: 0 Adet</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card-custom text-white p-3 h-100 shadow-sm" style="background-color: #d9534f;">
+                    <h6 class="fw-bold mb-1"><i class="fas fa-lira-sign"></i> Stok Maliyet Değeri</h6>
+                    <h3 class="mb-0" id="dash_total_cost">0.00 ₺</h3>
+                    <div class="small mt-2 opacity-75">KDV Dahil Güncel Alış Tutarınız</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card-custom bg-success text-white p-3 h-100 shadow-sm">
+                    <h6 class="fw-bold mb-1"><i class="fas fa-cash-register"></i> Toplam Satış (Ciro)</h6>
+                    <h3 class="mb-0" id="dash_total_revenue">0.00 ₺</h3>
+                    <div class="small mt-2 opacity-75">Tüm zamanların satışı</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card-custom text-white p-3 h-100 shadow-sm" style="background-color: var(--brand-gold);">
+                    <h6 class="fw-bold mb-1"><i class="fas fa-chart-line"></i> Tahmini Net Kâr</h6>
+                    <h3 class="mb-0" id="dash_total_profit">0.00 ₺</h3>
+                    <div class="small mt-2 opacity-75">Satışlardan elde edilen kâr</div>
+                </div>
+            </div>
+        </div>
 
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card-custom h-100">
+                    <div class="card-head bg-dark text-white"><i class="fas fa-calendar-alt me-2"></i> Aylık İşlem ve Kâr Tablosu</div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr><th>Ay / Yıl</th><th>Satılan Ürün</th><th>Ciro</th><th>Ürün Maliyeti</th><th>Brüt Kâr</th><th>Ek Giderler</th><th>Net Kâr</th></tr>
+                                </thead>
+                                <tbody id="dash_monthly_body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card-custom border-danger h-100">
+                    <div class="card-head bg-danger text-white"><i class="fas fa-file-invoice-dollar me-2"></i> Aylık Sabit / Diğer Giderler</div>
+                    <div class="card-body">
+                        <p class="small text-muted">Kira, personel, reklam veya ofis giderlerinizi ilgili aya işleyerek gerçek net kârınızı hesaplayın.</p>
+                        <select id="expense_month" class="form-select mb-2 fw-bold"></select>
+                        <div class="input-group input-group-sm mb-3">
+                            <span class="input-group-text bg-light text-dark fw-bold">Gider Tutarı:</span>
+                            <input type="number" id="expense_amount" class="form-control text-danger fw-bold" placeholder="0.00">
+                            <span class="input-group-text bg-danger text-white">₺</span>
+                        </div>
+                        <button class="btn btn-danger w-100 fw-bold" onclick="saveMonthlyExpense()">Gideri Kaydet</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     <div id="mod-stok" class="app-module active">
         <div class="card-custom">
             <div class="card-head">
@@ -253,7 +318,8 @@
                             <span>Ürün Seçimi</span>
                             <a href="#" onclick="openProductModal(); return false;" class="text-primary text-decoration-none fw-bold"><i class="fas fa-plus"></i> Yeni Ürün Tanımla</a>
                         </label>
-                        <select id="tx_product" class="form-select mb-2"></select>
+                        <select id="tx_product" class="form-select mb-2" onchange="loadTxVariants()"></select>
+                        <select id="tx_variant" class="form-select mb-2 border-info text-info fw-bold" style="display:none;"></select>
                         
                         <label class="small fw-bold text-muted mb-1">İşlem Adedi</label>
                         <input type="number" id="tx_qty" class="form-control mb-2" placeholder="Örn: 50">
@@ -367,7 +433,8 @@
                         <input type="text" id="basket_name" class="form-control border-warning fw-bold mb-3" placeholder="Örn: Cilt Bakım Seti">
                         
                         <label class="small fw-bold text-muted mb-1">Ürün Seçimi</label>
-                        <select id="basket_product" class="form-select mb-2"></select>
+                        <select id="basket_product" class="form-select mb-2" onchange="loadBasketVariants()"></select>
+                        <select id="basket_variant" class="form-select mb-2 border-info text-info fw-bold" style="display:none;"></select>
                         
                         <label class="small fw-bold text-muted mb-1">Sepetteki Adet</label>
                         <input type="number" id="basket_qty" class="form-control mb-3" value="1" min="1">
@@ -1548,8 +1615,14 @@ if(p.variants && p.variants.length > 0) {
 
             if(pIndex > -1) {
                 var p = productList[pIndex]; var mevcut = parseInt(p.qty) || 0; var isPriceUpdated = false;
+                var selectedVariant = document.getElementById('tx_variant').style.display === "block" ? document.getElementById('tx_variant').value : null;
+                
                 if(type === 'IN') {
                     p.qty = mevcut + qty;
+                    if(selectedVariant && p.variants) {
+                        var vObj = p.variants.find(v => v.name === selectedVariant);
+                        if(vObj) vObj.qty = parseInt(vObj.qty) + qty;
+                    }
                     if(!isNaN(newPrice) && newPrice > 0 && newPrice !== p.buy) {
                         if(confirm("Bu ürünün alış fiyatını " + newPrice + " TL olarak girdiniz.\nAna ürün kartındaki fiyatı ve satış maliyetlerini güncelleyeyim mi?")) {
                             document.getElementById('inp_tax').value = p.tax || 20; document.getElementById('inp_ship').value = p.ship || 83.93;
@@ -1562,8 +1635,18 @@ if(p.variants && p.variants.length > 0) {
                         }
                     }
                 } else {
+                    // SATIŞ (OUT) İŞLEMİ
                     if(mevcut < qty) { alert("Stok yetersiz! İşlem yapılamaz."); return; }
                     p.qty = mevcut - qty;
+                    
+                    // YENİ: Seçili varyantın stoğunu da düş
+                    var selectedVariant = document.getElementById('tx_variant').style.display === "block" ? document.getElementById('tx_variant').value : null;
+                    if(selectedVariant && p.variants) {
+                        var vObj = p.variants.find(v => v.name === selectedVariant);
+                        if(vObj) {
+                            vObj.qty = Math.max(0, (parseInt(vObj.qty) || 0) - qty);
+                        }
+                    }
                 }
 
                 var tx = { id: Date.now(), type: type, date: date, pid: pid, qty: qty, party: party, desc: desc, price: (!isNaN(newPrice) && newPrice > 0) ? newPrice : null };
@@ -1646,7 +1729,7 @@ if(p.variants && p.variants.length > 0) {
         var basketData = {
             id: activeBasketId || Date.now(),
             name: nameInput,
-            items: basketList.map(function(i) { return { pid: i.p.id, qty: i.qty }; }),
+            items: basketList.map(function(i) { return { pid: i.p.id, qty: i.qty, variant: i.variant }; }),
             ship: parseFloat(document.getElementById('basket_ship').value) || 0,
             comm: parseFloat(document.getElementById('basket_comm').value) || 0,
             tax: parseFloat(document.getElementById('basket_tax').value) || 0,
@@ -1821,62 +1904,89 @@ if(p.variants && p.variants.length > 0) {
         }
     }
 
+    // ==========================================
+    // YENİ: YAPAY ZEKA PAKET DANIŞMANI (V33 - GÜÇLENDİRİLMİŞ & RETRY EKLENMİŞ)
+    // ==========================================
+    var aiPackagesResult = [];
+
+    window.openAIModal = async function() {
+        var apiKey = localStorage.getItem('gemini_api_key');
+        if(!apiKey) {
+            apiKey = prompt("Lütfen ücretsiz Google Gemini API anahtarınızı girin:\n(Almak için: aistudio.google.com/app/apikey)");
+            if(!apiKey) return;
+            localStorage.setItem('gemini_api_key', apiKey);
+        }
+
+        var modal = new bootstrap.Modal(document.getElementById('aiModal'));
+        modal.show();
+        var body = document.getElementById('aiModalBody');
+        body.innerHTML = '<div class="text-center p-5"><i class="fas fa-spinner fa-spin fa-3x text-primary mb-3"></i><br><h5 class="fw-bold">Yapay Zeka Stratejisti Analiz Ediyor...</h5><p class="text-muted">Müşteri satın alma psikolojisi taranıyor ve kârlı pazarlama paketleri kurgulanıyor. (Lütfen bekleyin)</p></div>';
+
+        var availableProducts = productList.filter(p => (parseInt(p.qty) || 0) > 0).map(p => {
+            return { id: p.id, isim: p.name, kategori: p.cat, fiyat: p.sellEcom || p.sellStore || p.buy };
+        });
+
+        if(availableProducts.length < 2) {
+            body.innerHTML = '<div class="alert alert-warning">Yeterli ürün yok. Çapraz satış paketi oluşturmak için en az 2 adet stoklu ürününüz olmalı.</div>'; return;
+        }
+
+        var promptText = `Sen üst düzey bir kozmetik marka stratejisti ve satış uzmanısın. Aşağıdaki ürün listemi incele. Müşterinin satın alma dürtüsünü artıracak, birbirini kusursuz tamamlayan 3 farklı 'Çapraz Satış Paketi' kurgula. (Örn: Gündüz Işıltısı Seti, Kusursuz Ten Paketi vb.).
+        Her paket için pazarlama odaklı havalı bir isim ("name") ve bu ürünlerin neden bir arada kullanılması gerektiğini anlatan 2 cümlelik vurucu bir açıklama ("desc") yaz.
+        SADECE geçerli bir JSON dizisi (array) döndür. Hiçbir açıklama, markdown veya ekstra metin kullanma. 
+        Format: [{"name": "Paket Adı", "desc": "Neden alınmalı açıklaması...", "items": [{"pid": "ürün_id", "qty": 1}]}]
+        Ürün Listesi: ${JSON.stringify(availableProducts)}`;
+
+        let retries = 3;
+        while(retries > 0) {
+            try {
+                let response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey, {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }], generationConfig: { temperature: 0.8 } })
+                });
+                let data = await response.json();
+                if(data.error) throw new Error(data.error.message);
+                let aiText = data.candidates[0].content.parts[0].text.replace(/```json/g, '').replace(/```/g, '').trim();
+                aiPackagesResult = JSON.parse(aiText);
+                renderAIResults();
+                break; // Başarılı olursa döngüden çık
+            } catch (error) {
+                retries--;
+                if(retries === 0) {
+                    body.innerHTML = '<div class="alert alert-danger">Hata oluştu: ' + error.message + '<br>Google sunucuları şu an çok yoğun. Lütfen 1 dakika sonra tekrar deneyin.<br><button class="btn btn-sm btn-outline-danger mt-3" onclick="localStorage.removeItem(\'gemini_api_key\'); document.getElementById(\'aiModal\').querySelector(\'.btn-close\').click(); openAIModal();">API Anahtarını Sıfırla</button></div>';
+                } else {
+                    await new Promise(r => setTimeout(r, 2000)); // 2 saniye bekle ve tekrar dene
+                }
+            }
+        }
+    }
+
     window.renderAIResults = function() {
         var body = document.getElementById('aiModalBody');
-        body.innerHTML = '<div class="alert alert-success small mb-3"><i class="fas fa-check-circle"></i> <b>Analiz Tamamlandı!</b> Aşağıdaki paketler birbiriyle uyumlu ürünlerden oluşturuldu. İstediğinizi sepetinize ekleyebilirsiniz.</div>';
-        
+        body.innerHTML = '<div class="alert alert-success small mb-3"><i class="fas fa-check-circle"></i> <b>Analiz Tamamlandı!</b> Uzman stratejistimizin sizin için kurguladığı premium paketler aşağıdadır:</div>';
         aiPackagesResult.forEach((pkg, index) => {
-            var html = '<div class="card mb-3 border-primary shadow-sm"><div class="card-header bg-white d-flex justify-content-between align-items-center"><h6 class="fw-bold mb-0 text-primary"><i class="fas fa-box-open"></i> ' + pkg.name + '</h6><button class="btn btn-sm btn-success fw-bold" onclick="saveAIPackage(' + index + ')"><i class="fas fa-plus"></i> Kayıtlı Paketlere Ekle</button></div><div class="card-body py-2"><ul class="list-group list-group-flush small">';
-            
+            var html = '<div class="card mb-3 border-primary shadow-sm"><div class="card-header bg-white d-flex justify-content-between align-items-center"><h6 class="fw-bold mb-0 text-primary"><i class="fas fa-box-open"></i> ' + pkg.name + '</h6><button class="btn btn-sm btn-success fw-bold" onclick="saveAIPackage(' + index + ')"><i class="fas fa-plus"></i> Paketi Kaydet</button></div><div class="card-body py-2"><p class="small text-muted mb-2"><i>"' + (pkg.desc || '') + '"</i></p><ul class="list-group list-group-flush small">';
             pkg.items.forEach(item => {
                 var prod = productList.find(p => p.id == item.pid);
                 var pName = prod ? prod.name : "<span class='text-danger'>Stokta Kalmayan Ürün</span>";
-                html += '<li class="list-group-item d-flex justify-content-between align-items-center">' + pName + '<span class="badge bg-secondary rounded-pill">' + item.qty + ' Adet</span></li>';
+                html += '<li class="list-group-item d-flex justify-content-between align-items-center p-1">' + pName + '<span class="badge bg-secondary rounded-pill">' + item.qty + ' Adet</span></li>';
             });
-            
             html += '</ul></div></div>';
             body.innerHTML += html;
         });
     }
 
     window.saveAIPackage = function(index) {
-        var pkg = aiPackagesResult[index];
-        if(!pkg) return;
-
-        var newBasket = {
-            id: Date.now() + Math.floor(Math.random()*1000),
-            name: "✨ AI Önerisi: " + pkg.name,
-            items: pkg.items,
-            ship: 83.93,
-            comm: 21,
-            tax: 20,
-            sellEcom: 0,
-            sellStore: 0
-        };
-
-        // Otomatik Paket Fiyatlandırması (Normal fiyatlar üzerinden %10 İndirim Uygular)
+        var pkg = aiPackagesResult[index]; if(!pkg) return;
+        var newBasket = { id: Date.now(), name: "✨ AI: " + pkg.name, items: pkg.items, ship: 83.93, comm: 21, tax: 20, sellEcom: 0, sellStore: 0 };
         var totalEcom = 0, totalStore = 0;
         pkg.items.forEach(item => {
             var p = productList.find(x => x.id == item.pid);
-            if(p) {
-                totalEcom += (parseFloat(p.sellEcom) || parseFloat(p.buy) || 0) * item.qty;
-                totalStore += (parseFloat(p.sellStore) || parseFloat(p.buy) || 0) * item.qty;
-            }
+            if(p) { totalEcom += (parseFloat(p.sellEcom) || parseFloat(p.buy) || 0) * item.qty; totalStore += (parseFloat(p.sellStore) || parseFloat(p.buy) || 0) * item.qty; }
         });
-        
-        newBasket.sellEcom = parseFloat((totalEcom * 0.90).toFixed(2));
-        newBasket.sellStore = parseFloat((totalStore * 0.90).toFixed(2));
-
-        savedBaskets.push(newBasket);
-        localStorage.setItem(BASKET_DB_NAME, JSON.stringify(savedBaskets));
-        renderSavedBaskets();
-        
-        // Modalı Kapat
-        var modalEl = document.getElementById('aiModal');
-        var modalInstance = bootstrap.Modal.getInstance(modalEl);
-        if(modalInstance) modalInstance.hide();
-        
-        alert("Harika Seçim!\n'" + pkg.name + "' başarıyla Kayıtlı Paketlerinize eklendi.\nPaket cazip olması için otomatik olarak %10 İndirimli fiyatlandırıldı.");
+        newBasket.sellEcom = parseFloat((totalEcom * 0.90).toFixed(2)); newBasket.sellStore = parseFloat((totalStore * 0.90).toFixed(2));
+        savedBaskets.push(newBasket); localStorage.setItem(BASKET_DB_NAME, JSON.stringify(savedBaskets)); renderSavedBaskets();
+        bootstrap.Modal.getInstance(document.getElementById('aiModal')).hide();
+        alert("Harika Seçim!\n'" + pkg.name + "' başarıyla Kayıtlı Paketlerinize eklendi.");
     }
 
     var totalBasketBuyCost = 0;
@@ -2095,18 +2205,19 @@ if(p.variants && p.variants.length > 0) {
             var pIndex = productList.findIndex(function(x) { return x.id == item.pid; });
             if(pIndex > -1) {
                 var p = productList[pIndex];
-                p.qty = (parseInt(p.qty) || 0) - item.qty; // Stoğu Düş
+                p.qty = (parseInt(p.qty) || 0) - item.qty; // Ana Stoğu Düş
+                
+                // Varsa Varyant Stoğunu Düş
+                if(item.variant && p.variants) {
+                    var vObj = p.variants.find(v => v.name === item.variant);
+                    if(vObj) vObj.qty = Math.max(0, parseInt(vObj.qty) - item.qty);
+                }
 
-                // Deftere İşle (Paket satışı olduğu için fiyatı sıfır geçiyoruz ki ortalama bozmasın, veya not düşüyoruz)
+                // Deftere İşle
+                var vText = item.variant ? " (" + item.variant + ")" : "";
                 var tx = { 
-                    id: Date.now() + Math.floor(Math.random()*10000), 
-                    type: 'OUT', 
-                    date: date, 
-                    pid: p.id, 
-                    qty: item.qty, 
-                    party: party, 
-                    desc: "Sepet/Paket Satışı: [" + b.name + "] " + channel + " - " + desc, 
-                    price: null 
+                    id: Date.now() + Math.floor(Math.random()*10000), type: 'OUT', date: date, pid: p.id, qty: item.qty, party: party, 
+                    desc: "Sepet Satışı: [" + b.name + "]" + vText + " " + channel + " - " + desc, price: null 
                 };
                 txList.push(tx);
             }
@@ -2662,6 +2773,55 @@ function syncVariantTotal() {
         document.getElementById('inp_qty').value = total;
     }
 }
+// --- VARYANT SEÇİMİ VE STOK DÜŞME MANTIĞI ---
+
+    function loadTxVariants() {
+        var pid = document.getElementById('tx_product').value;
+        var varSelect = document.getElementById('tx_variant');
+        varSelect.innerHTML = ""; varSelect.style.display = "none";
+        if(!pid) return;
+        var p = productList.find(x => x.id == pid);
+        if(p && p.variants && p.variants.length > 0) {
+            varSelect.style.display = "block";
+            varSelect.innerHTML = '<option value="">-- Hangi Varyant? --</option>';
+            p.variants.forEach(v => {
+                varSelect.innerHTML += '<option value="' + v.name + '">' + v.name + ' (Stok: ' + v.qty + ')</option>';
+            });
+        }
+    }
+
+    function loadBasketVariants() {
+        var pid = document.getElementById('basket_product').value;
+        var varSelect = document.getElementById('basket_variant');
+        varSelect.innerHTML = ""; varSelect.style.display = "none";
+        if(!pid) return;
+        var p = productList.find(x => x.id == pid);
+        if(p && p.variants && p.variants.length > 0) {
+            varSelect.style.display = "block";
+            varSelect.innerHTML = '<option value="">-- Varyant Seçin --</option>';
+            p.variants.forEach(v => {
+                varSelect.innerHTML += '<option value="' + v.name + '">' + v.name + ' (Stok: ' + v.qty + ')</option>';
+            });
+        }
+    }
+
+    // Mevcut addToBasket fonksiyonunu şununla değiştirin:
+    function addToBasket() {
+        var pid = document.getElementById('basket_product').value;
+        var qty = parseInt(document.getElementById('basket_qty').value) || 1;
+        var varSelect = document.getElementById('basket_variant');
+        var variantName = varSelect.style.display === "block" ? varSelect.value : null;
+        
+        if(!pid) { alert("Lütfen bir ürün seçin."); return; }
+        if(varSelect.style.display === "block" && !variantName) { alert("Lütfen eklenecek varyantı seçin!"); return; }
+        
+        var product = productList.find(x => x.id == pid);
+        if(product) {
+            basketList.push({ p: product, qty: qty, variant: variantName });
+            document.getElementById('basket_qty').value = 1;
+            renderBasket();
+        }
+    }
 
 </script>
 <script type="module">
@@ -2797,6 +2957,103 @@ function syncVariantTotal() {
         btnSave.disabled = false;
     }
   };
+  // --- DASHBOARD VE FİNANSAL ÖZET ---
+    var monthlyExpenses = JSON.parse(localStorage.getItem('monthlyExpenses')) || {};
+
+    function renderDashboard() {
+        var totalProds = productList.length;
+        var totalStock = 0;
+        var totalStockValue = 0;
+        
+        productList.forEach(p => {
+            var q = parseInt(p.qty) || 0;
+            totalStock += q;
+            totalStockValue += q * (parseFloat(p.buy) || 0);
+        });
+
+        document.getElementById('dash_total_products').innerText = totalProds;
+        document.getElementById('dash_total_stock').innerText = "Toplam Stok: " + totalStock + " Adet";
+        document.getElementById('dash_total_cost').innerText = totalStockValue.toLocaleString('tr-TR', {minimumFractionDigits: 2}) + " ₺";
+
+        var monthlyData = {};
+        var totalRevenue = 0;
+        var totalProfit = 0;
+
+        txList.forEach(tx => {
+            if(tx.type === 'OUT' && tx.price !== null) { // Sadece fiyat girilmiş satışlar baz alınır
+                var dateObj = new Date(tx.date);
+                var monthKey = dateObj.getFullYear() + "-" + String(dateObj.getMonth() + 1).padStart(2, '0');
+                
+                if(!monthlyData[monthKey]) {
+                    monthlyData[monthKey] = { itemsSold: 0, revenue: 0, cost: 0 };
+                }
+                
+                var p = productList.find(x => x.id == tx.pid);
+                var unitCost = p ? (parseFloat(p.buy) || 0) : 0; 
+                
+                var lineRev = tx.qty * tx.price;
+                var lineCost = tx.qty * unitCost;
+                
+                monthlyData[monthKey].itemsSold += tx.qty;
+                monthlyData[monthKey].revenue += lineRev;
+                monthlyData[monthKey].cost += lineCost;
+                
+                totalRevenue += lineRev;
+                totalProfit += (lineRev - lineCost);
+            }
+        });
+
+        document.getElementById('dash_total_revenue').innerText = totalRevenue.toLocaleString('tr-TR', {minimumFractionDigits: 2}) + " ₺";
+        document.getElementById('dash_total_profit').innerText = totalProfit.toLocaleString('tr-TR', {minimumFractionDigits: 2}) + " ₺";
+
+        var tbody = document.getElementById('dash_monthly_body');
+        var monthSelect = document.getElementById('expense_month');
+        if(tbody) tbody.innerHTML = '';
+        if(monthSelect) monthSelect.innerHTML = '';
+
+        var sortedMonths = Object.keys(monthlyData).sort().reverse();
+        
+        sortedMonths.forEach(m => {
+            var d = monthlyData[m];
+            var exp = parseFloat(monthlyExpenses[m]) || 0;
+            var brut = d.revenue - d.cost;
+            var net = brut - exp;
+            
+            // Ay ismini formatla (Örn: 2024-05 -> Mayıs 2024)
+            var parts = m.split('-');
+            var mName = new Date(parts[0], parts[1]-1).toLocaleString('tr-TR', { month: 'long', year: 'numeric' });
+
+            monthSelect.innerHTML += `<option value="${m}">${mName}</option>`;
+
+            tbody.innerHTML += `
+                <tr>
+                    <td class="fw-bold">${mName}</td>
+                    <td><span class="badge bg-secondary">${d.itemsSold} Adet</span></td>
+                    <td class="text-success fw-bold">${d.revenue.toLocaleString('tr-TR', {minimumFractionDigits: 2})} ₺</td>
+                    <td class="text-danger">${d.cost.toLocaleString('tr-TR', {minimumFractionDigits: 2})} ₺</td>
+                    <td class="text-primary fw-bold">${brut.toLocaleString('tr-TR', {minimumFractionDigits: 2})} ₺</td>
+                    <td class="text-danger">- ${exp.toLocaleString('tr-TR', {minimumFractionDigits: 2})} ₺</td>
+                    <td class="fw-bold ${net >= 0 ? 'text-success' : 'text-danger'}">${net.toLocaleString('tr-TR', {minimumFractionDigits: 2})} ₺</td>
+                </tr>
+            `;
+        });
+        
+        if(sortedMonths.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Henüz finansal hesaplama yapılabilecek bir satış kaydı bulunmuyor.</td></tr>';
+        }
+    }
+
+    function saveMonthlyExpense() {
+        var m = document.getElementById('expense_month').value;
+        var amt = parseFloat(document.getElementById('expense_amount').value) || 0;
+        if(!m) { alert("Lütfen ay seçin."); return; }
+        
+        monthlyExpenses[m] = amt;
+        localStorage.setItem('monthlyExpenses', JSON.stringify(monthlyExpenses));
+        document.getElementById('expense_amount').value = "";
+        renderDashboard();
+        alert("Gider kaydedildi ve net kâr güncellendi.");
+    }
 </script>
 </body>
 </html>
