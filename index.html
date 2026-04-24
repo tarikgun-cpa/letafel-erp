@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LETAFEL KOZMETİK ERP & KATALOG V32 ULTIMATE</title>
+    <title>LETAFEL KOZMETİK ERP ULTIMATE</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><path fill='%23A2B9A6' d='M256 32c14.2 0 27.3 7.5 34.5 19.8l216 368c7.3 12.4 7.3 27.7 .2 40.1S486.3 480 472 480H40c-14.3 0-27.6-7.7-34.7-20.1s-7-27.8 .2-40.1l216-368C228.7 39.5 241.8 32 256 32zm0 128c-53 0-96 43-96 96s43 96 96 96 96-43 96-96-43-96-96-96z'/></svg>">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -168,8 +168,8 @@
             <div id="view_logo_placeholder" class="text-center text-white small fw-bold"><i class="fas fa-camera fs-4 mb-1"></i><br>Logo</div>
         </div>
         <div>
-            <h1 class="brand-title">LETAFEL KOZMETİK</h1>
-            <div class="fw-bold" style="font-size: 0.85rem; color: #888;">ÜRÜNLER PAZARLAMA VE TİCARET LİMİTED ŞİRKETİ</div>
+            <h1 class="brand-title">LETAFEL KOZMETİK ÜRÜNLER PAZARLAMA VE TİCARET LİMİTED ŞİRKETİ</h1>
+            <div class="fw-bold" style="font-size: 0.85rem; color: #224a07;">LETAFEL COSMETICS</div>
             <div class="small fw-bold" style="color: var(--accent-dark);"><i class="fas fa-map-marker-alt"></i> KARTEPE</div>
         </div>
     </div>
@@ -1445,7 +1445,7 @@ function importPlatformSettingsCSV(input) {
                                 (p.comp_hb ? '<span class="badge me-1 mb-1 shadow-sm" style="background-color:#ff6000;" title="Hepsiburada">HB: ' + parseFloat(p.comp_hb).toFixed(2) + ' ₺</span>' : '') +
                                 (p.comp_amz ? '<span class="badge bg-dark me-1 mb-1 shadow-sm" title="Amazon">AMZ: ' + parseFloat(p.comp_amz).toFixed(2) + ' ₺</span>' : '') +
                                 (p.comp_cs ? '<span class="badge bg-info text-dark me-1 mb-1 shadow-sm" title="Çiçeksepeti">ÇS: ' + parseFloat(p.comp_cs).toFixed(2) + ' ₺</span>' : '') +
-                                (p.comp_ig ? '<span class="badge bg-danger mb-1 shadow-sm" style="background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);" title="Instagram">IG: ' + parseFloat(p.comp_ig).toFixed(2) + ' ₺</span>' : '') +
+                                (p.comp_ig ? '<span class="badge mb-1 shadow-sm" style="background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: #ffffff !important; border: none;" title="Instagram">IG: ' + parseFloat(p.comp_ig).toFixed(2) + ' ₺</span>' : '') +
                             '</div>' +
                         '</td>' +
                         '<td class="text-center p-3">' +
@@ -1773,7 +1773,7 @@ if(p.variants && p.variants.length > 0) {
         });
     }
 
-    function saveCurrentBasket() {
+    async function saveCurrentBasket() {
         if(basketList.length === 0) { alert("Sepetinizde ürün bulunmuyor!"); return; }
         
         var nameInput = document.getElementById('basket_name').value.trim();
@@ -1794,17 +1794,28 @@ if(p.variants && p.variants.length > 0) {
             sellStore: parseFloat(document.getElementById('basket_sell_store').value) || 0
         };
 
-        if(activeBasketId) {
-            var idx = savedBaskets.findIndex(function(x) { return x.id == activeBasketId; });
-            if(idx > -1) savedBaskets[idx] = basketData; else savedBaskets.push(basketData);
-        } else {
-            activeBasketId = basketData.id;
-            savedBaskets.push(basketData);
+        try {
+            if(activeBasketId) {
+                var existingBasket = savedBaskets.find(function(x) { return x.id == activeBasketId; });
+                if(existingBasket && existingBasket.fbId) {
+                    // Firebase'de Mevcut Olanı Güncelle
+                    const docRef = window.fbDoc(window.db, "baskets", existingBasket.fbId);
+                    await window.fbUpdateDoc(docRef, basketData);
+                } else {
+                    // Firebase'e Yeni Ekle
+                    await window.fbAddDoc(window.fbCollection(window.db, "baskets"), basketData);
+                }
+            } else {
+                activeBasketId = basketData.id;
+                await window.fbAddDoc(window.fbCollection(window.db, "baskets"), basketData);
+            }
+            
+            // Listeyi buluttan tazele
+            await window.fetchFromFirestore();
+            alert("Paket başarıyla BULUTA kaydedildi!");
+        } catch(e) {
+            alert("Buluta kaydedilirken hata oluştu: " + e.message);
         }
-
-        localStorage.setItem(BASKET_DB_NAME, JSON.stringify(savedBaskets));
-        renderSavedBaskets();
-        alert("Paket başarıyla kaydedildi!");
     }
 
     function loadSavedBasket(bid) {
@@ -1838,12 +1849,25 @@ if(p.variants && p.variants.length > 0) {
         document.getElementById('basket_name').scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
-    function deleteSavedBasket(bid) {
+    async function deleteSavedBasket(bid) {
         if(confirm("Bu paketi tamamen silmek istiyor musunuz?")) {
-            savedBaskets = savedBaskets.filter(function(x) { return x.id != bid; });
-            localStorage.setItem(BASKET_DB_NAME, JSON.stringify(savedBaskets));
-            if(activeBasketId == bid) resetActiveBasket();
-            renderSavedBaskets();
+            var b = savedBaskets.find(function(x) { return x.id == bid; });
+            if(b && b.fbId) {
+                try {
+                    // Buluttan Sil
+                    await window.fbDeleteDoc(window.fbDoc(window.db, "baskets", b.fbId));
+                    if(activeBasketId == bid) resetActiveBasket();
+                    await window.fetchFromFirestore(); // Listeyi tazele
+                } catch(e) {
+                    alert("Silinirken hata oluştu: " + e.message);
+                }
+            } else {
+                // Eskiden tarayıcıda kalmış yerel bir veri ise (Geriye Dönük Uyumluluk)
+                savedBaskets = savedBaskets.filter(function(x) { return x.id != bid; });
+                localStorage.setItem(BASKET_DB_NAME, JSON.stringify(savedBaskets));
+                if(activeBasketId == bid) resetActiveBasket();
+                renderSavedBaskets();
+            }
         }
     }
 
@@ -3006,16 +3030,28 @@ function syncVariantTotal() {
   window.fetchFromFirestore = async function() {
     try {
         console.log("Veriler çekiliyor...");
+        // Ürünleri Çek
         const querySnapshot = await window.fbGetDocs(window.fbCollection(window.db, "products"));
         productList = [];
         querySnapshot.forEach((doc) => {
             let data = doc.data();
-            data.fbId = doc.id; // Güncelleme/Silme için Firebase ID'sini sakla
+            data.fbId = doc.id;
             productList.push(data);
         });
+        
+        // Sepetleri / Paketleri Çek
+        const basketSnapshot = await window.fbGetDocs(window.fbCollection(window.db, "baskets"));
+        savedBaskets = [];
+        basketSnapshot.forEach((doc) => {
+            let data = doc.data();
+            data.fbId = doc.id; // Firebase'in kendi kimliği
+            savedBaskets.push(data);
+        });
+
         renderTable();
         updateSelects();
         updateBasketSelect();
+        renderSavedBaskets(); // Sepet tablosunu ekrana çizdir
         console.log("Yükleme tamamlandı.");
     } catch (error) {
         console.error("Veri çekme hatası:", error);
