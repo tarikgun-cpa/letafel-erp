@@ -1686,8 +1686,10 @@ if(p.variants && p.variants.length > 0) {
         party: party, 
         desc: desc, 
         price: (!isNaN(newPrice) && newPrice > 0) ? newPrice : null, 
-        variant: selectedVariantName // İŞTE EKSİK OLAN KISIM BURASIYDI
+        variant: selectedVariantName 
     };
+    
+    txList.push(tx); // BU KOD EKLENDİ: İşlemi ana listeye dahil ediyoruz!
     saveSafeData();
                 document.getElementById('tx_qty').value = ""; document.getElementById('tx_party').value = ""; document.getElementById('tx_desc').value = ""; document.getElementById('tx_buy_price').value = "";
                 updateSelects(); renderTable(); renderTxTable();
@@ -2116,16 +2118,17 @@ if(p.variants && p.variants.length > 0) {
         
         // --- YENİ: SEPET KARGO BARAJI ---
         var freeShipLimit = parseFloat(localStorage.getItem('freeShipLimit')) || 350;
-        var bShipVal = document.getElementById('basket_ship').value;
+        var shipInput = document.getElementById('basket_ship');
+        var bShipVal = shipInput ? shipInput.value : "";
         var shipEx = bShipVal === "" ? 83.93 : parseFloat(bShipVal); 
         
         if(sellEcom > 0 && sellEcom < freeShipLimit) {
             shipEx = 0; // Sepet tutarı baraj altındaysa satıcı kargo ödemez
+        } else if (sellEcom >= freeShipLimit && shipEx === 0) {
+            shipEx = 83.93; // Tutar barajı geçtiğinde ve kargo 0'da takılı kaldıysa standart kargoyu geri ekle
         }
         
-              
         // Hesaplanan kargoyu ekrandaki kutucuğa yansıt
-        var shipInput = document.getElementById('basket_ship');
         if(shipInput) shipInput.value = shipEx;
 
         var taxFactor = 1 + (taxRate / 100);
