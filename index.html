@@ -1106,10 +1106,12 @@ function importPlatformSettingsCSV(input) {
             var freeShipLimit = parseFloat(localStorage.getItem('freeShipLimit')) || 350;
             function getShipCost(price) {
                 if(price > 0 && price < freeShipLimit) return 0; // Barajın altındaysa kargo maliyeti yok
-                return parseFloat(document.getElementById('inp_ship').value) || 83.93;
+                var val = document.getElementById('inp_ship').value;
+                return val === "" ? 83.93 : parseFloat(val);
             }
 
-            var shipEx = parseFloat(document.getElementById('inp_ship').value) || 83.93;
+            var shipVal = document.getElementById('inp_ship').value;
+            var shipEx = shipVal === "" ? 83.93 : parseFloat(shipVal);
             var serviceEx = parseFloat(document.getElementById('inp_service').value) || 0; 
             
             // YENİ EKLENEN: E-Ticaret Satış Çarpanı (Adet)
@@ -1309,6 +1311,7 @@ function importPlatformSettingsCSV(input) {
                         '<td class="bg-white border rounded shadow-sm p-3">' +
                             '<div class="detail-row"><span>Alış Fiyatı:</span> <span>' + parseFloat(p.buy).toFixed(2) + ' ₺</span></div>' +
                             '<div class="detail-row"><span>Kargo:</span> <span>' + (p.shipInc || 0).toFixed(2) + ' ₺</span></div>' +
+                            '<div class="detail-row"><span>Hizmet Bedeli:</span> <span>' + (p.service || 0).toFixed(2) + ' ₺</span></div>' +
                             '<div class="detail-row"><span>Komisyon:</span> <span>' + (p.commAmount || 0).toFixed(2) + ' ₺</span></div>' +
                             '<div class="detail-row mt-2 text-danger"><span>E-Tic Maliyeti:</span> <span>' + parseFloat(p.costEcom || p.buy).toFixed(2) + ' ₺</span></div>' +
                             '<div class="detail-row text-success"><span>Mağaza Maliyeti:</span> <span>' + parseFloat(p.costStore || p.buy).toFixed(2) + ' ₺</span></div>' +
@@ -1938,7 +1941,8 @@ function importPlatformSettingsCSV(input) {
         
         // --- YENİ: SEPET KARGO BARAJI ---
         var freeShipLimit = parseFloat(localStorage.getItem('freeShipLimit')) || 350;
-        var shipEx = parseFloat(document.getElementById('basket_ship').value) || 83.93; 
+        var bShipVal = document.getElementById('basket_ship').value;
+        var shipEx = bShipVal === "" ? 83.93 : parseFloat(bShipVal); 
         
         if(sellEcom > 0 && sellEcom < freeShipLimit) {
             shipEx = 0; // Sepet tutarı baraj altındaysa satıcı kargo ödemez
