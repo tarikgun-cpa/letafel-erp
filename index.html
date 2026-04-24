@@ -533,6 +533,13 @@
                         </div>
                     </div>
 
+<label class="small fw-bold text-muted mb-1">Ücretsiz Kargo Sınırı (₺)</label>
+<div class="input-group input-group-sm mb-3">
+    <input type="number" id="setting_free_ship_limit" class="form-control fw-bold border-primary" value="350" onchange="saveGlobalSettings()">
+    <span class="input-group-text bg-primary text-white border-primary">₺</span>
+</div>
+<div class="small text-muted mb-3"><i class="fas fa-info-circle"></i> E-Ticaret satış fiyatı bu tutarın altındaysa maliyete kargo eklenmez (Alıcı öder).</div>
+
                     <label class="small fw-bold text-muted mb-1">Satıcı Tipi / Profiliniz</label>
                     <select id="setting_seller_type" class="form-select mb-3 fw-bold" onchange="saveGlobalSettings()">
                         <option value="STANDART">Standart Satıcı</option>
@@ -652,9 +659,13 @@
                             <label class="small text-muted fw-bold">Hizmet Bedeli (₺)</label>
                             <input type="number" id="inp_service" class="form-control form-control-sm" value="0" placeholder="KDV'siz" oninput="runCalcSafe('margin')">
                         </div>
-                        <div class="col-12 mt-2">
+                        <div class="col-6 mt-2">
                             <label class="small text-muted fw-bold">KDV Oranı %</label>
                             <input type="number" id="inp_tax" class="form-control form-control-sm" value="20" oninput="runCalcSafe('margin')">
+                        </div>
+                        <div class="col-6 mt-2">
+                            <label class="small text-muted fw-bold text-info">E-Ticaret Min. Adet</label>
+                            <input type="number" id="inp_min_qty" class="form-control form-control-sm border-info fw-bold text-info" value="1" min="1" oninput="runCalcSafe('margin')" title="Bu üründen e-ticarette tek seferde en az kaç adet satılacak?">
                         </div>
                         
                         <div class="col-6 mt-3">
@@ -795,7 +806,11 @@ var platformRules = [];
 function loadSettings() {
     var savedType = localStorage.getItem('sellerType') || 'STANDART';
     var savedRules = localStorage.getItem('platformRules');
+    var savedShipLimit = localStorage.getItem('freeShipLimit') || 350; // YENİ EKLENDİ
+    
     document.getElementById('setting_seller_type').value = savedType;
+    if(document.getElementById('setting_free_ship_limit')) document.getElementById('setting_free_ship_limit').value = savedShipLimit; // YENİ EKLENDİ
+    
     if(savedRules) platformRules = JSON.parse(savedRules);
     
     renderPlatformRules();
@@ -805,6 +820,12 @@ function loadSettings() {
 
 function saveGlobalSettings() {
     localStorage.setItem('sellerType', document.getElementById('setting_seller_type').value);
+    
+    // YENİ EKLENDİ
+    if(document.getElementById('setting_free_ship_limit')) {
+        localStorage.setItem('freeShipLimit', document.getElementById('setting_free_ship_limit').value);
+    }
+    
     checkEntrepreneurLimit(); 
 }
 
@@ -1081,23 +1102,25 @@ function importPlatformSettingsCSV(input) {
             var taxFactor = 1 + (tax/100); 
             var innerTax = (tax/100) / taxFactor; 
             
-            // --- YENİ: TRENDYOL AKILLI KARGO DİLİMLERİ ---
+            // --- YENİ: DİNAMİK KARGO BARAJI ---
+            var freeShipLimit = parseFloat(localStorage.getItem('freeShipLimit')) || 350;
             function getShipCost(price) {
-                if(price <= 0) return 83.93; // Fiyat yoksa en yüksek barem
-                if(price < 200) return 42.91;
-                if(price < 350) return 73.74;
-                return 83.93;
+                if(price > 0 && price < freeShipLimit) return 0; // Barajın altındaysa kargo maliyeti yok
+                return parseFloat(document.getElementById('inp_ship').value) || 83.93;
             }
 
             var shipEx = parseFloat(document.getElementById('inp_ship').value) || 83.93;
-            // 1. YENİ EKLENEN: Arayüzden Hizmet Bedelini KDV'siz olarak çekiyoruz.
             var serviceEx = parseFloat(document.getElementById('inp_service').value) || 0; 
+            
+            // YENİ EKLENEN: E-Ticaret Satış Çarpanı (Adet)
+            var minQty = parseInt(document.getElementById('inp_min_qty').value) || 1;
+            if(minQty < 1) minQty = 1;
+            var ecomBuyTotal = buy * minQty; // E-ticarette maliyet adede göre katlanır
             
             var marginEcom = parseFloat(document.getElementById('inp_margin_ecom').value) / 100 || 0;
             var denomEcom = 1 - comm - innerTax;
             var sellEcom = parseFloat(document.getElementById('inp_sell_ecom').value) || 0;
 
-            // Kargo Maliyetini Fiyata Göre Otomatik Belirle
             if(source === 'ecom_price') {
                 shipEx = getShipCost(sellEcom);
                 document.getElementById('inp_ship').value = shipEx;
@@ -1105,15 +1128,13 @@ function importPlatformSettingsCSV(input) {
                 var testShip = shipEx;
                 for(var i=0; i<2; i++) {
                     var tShipInc = testShip * taxFactor;
-                    // 2. YENİ EKLENEN: Hizmet bedelinin KDV'li halini geçici olarak hesaplıyoruz
                     var tServiceInc = serviceEx * taxFactor; 
                     
-                    // 3. GÜNCELLENEN: KDV girdisi (indirilecek KDV) hesaplamasına hizmet bedelinin KDV'sini de ekliyoruz.
-                    var tVatInput = (buy - (buy/taxFactor)) + (tShipInc - testShip) + (tServiceInc - serviceEx); 
+                    // KDV Girdisi ve Satış fiyatı çarpanlı maliyet üzerinden hesaplanır
+                    var tVatInput = (ecomBuyTotal - (ecomBuyTotal/taxFactor)) + (tShipInc - testShip) + (tServiceInc - serviceEx); 
                     
-                    if (denomEcom > 0 && buy > 0) {
-                        // 4. GÜNCELLENEN: Satış fiyatını bulurken baz alınan maliyete (buy + tShipInc) hizmet bedelini (tServiceInc) de ekliyoruz.
-                        sellEcom = ((buy + tShipInc + tServiceInc) * (1 + marginEcom) - tVatInput) / denomEcom;
+                    if (denomEcom > 0 && ecomBuyTotal > 0) {
+                        sellEcom = ((ecomBuyTotal + tShipInc + tServiceInc) * (1 + marginEcom) - tVatInput) / denomEcom;
                     }
                     testShip = getShipCost(sellEcom);
                 }
@@ -1121,17 +1142,14 @@ function importPlatformSettingsCSV(input) {
                 document.getElementById('inp_ship').value = shipEx;
             }
 
-            // Kargo ve Hizmet Bedeli netleştiğine göre asıl matematiği yapalım
             var shipInc = shipEx * taxFactor; 
-            // 5. YENİ EKLENEN: Hizmet bedelinin nihai KDV'li hali
             var serviceInc = serviceEx * taxFactor; 
             
-            // 6. GÜNCELLENEN: Toplam e-ticaret maliyetine Hizmet Bedelini dahil ediyoruz
-            var costEcom = buy + shipInc + serviceInc; 
-            
-            // 7. GÜNCELLENEN: Nihai indirilecek KDV matrahına Hizmet bedeli KDV'sini de ekliyoruz
-            var vatInputEcom = (buy - (buy/taxFactor)) + (shipInc - shipEx) + (serviceInc - serviceEx);
+            // E-Ticaret toplam maliyeti = Çarpanlı Ürün + Tek Kargo + Tek Hizmet Bedeli
+            var costEcom = ecomBuyTotal + shipInc + serviceInc; 
+            var vatInputEcom = (ecomBuyTotal - (ecomBuyTotal/taxFactor)) + (shipInc - shipEx) + (serviceInc - serviceEx);
 
+            // MAĞAZA TARAFI: Tekil hesaplanmaya devam eder
             var costStore = buy; 
             var vatInputStore = (buy - (buy/taxFactor));
             var denomStore = 1 - innerTax;
@@ -1146,7 +1164,7 @@ function importPlatformSettingsCSV(input) {
                     document.getElementById('inp_margin_ecom').value = (marginEcom * 100).toFixed(2);
                 }
             } else {
-                if (denomEcom > 0 && buy > 0) {
+                if (denomEcom > 0 && ecomBuyTotal > 0) {
                     document.getElementById('inp_sell_ecom').value = sellEcom.toFixed(2);
                 } else {
                     document.getElementById('inp_sell_ecom').value = "";
@@ -1171,7 +1189,7 @@ function importPlatformSettingsCSV(input) {
             }
 
             var netEcom = 0, breakEvenEcom = 0, commAmount = 0;
-            if(denomEcom > 0 && buy > 0) {
+            if(denomEcom > 0 && ecomBuyTotal > 0) {
                 breakEvenEcom = (costEcom - vatInputEcom) / denomEcom;
                 commAmount = sellEcom * comm; 
                 var vatPayEcom = Math.max(0, (sellEcom * innerTax) - vatInputEcom);
@@ -1205,7 +1223,7 @@ function importPlatformSettingsCSV(input) {
             document.getElementById('inp_comm').value = 21; document.getElementById('inp_margin_ecom').value = 30; document.getElementById('inp_margin_store').value = 40; document.getElementById('inp_service').value = 0;
             document.getElementById('disp_net_ecom').innerText = "Kar: 0.00 ₺";
             document.getElementById('disp_net_store').innerText = "Kar: 0.00 ₺";
-            
+            document.getElementById('inp_min_qty').value = 1;
             if(modalInstance) modalInstance.show(); else document.getElementById('productModal').style.display = 'block';
         } catch (e) { alert("Modal açılamadı."); }
     }
@@ -1297,7 +1315,7 @@ function importPlatformSettingsCSV(input) {
                         '</td>' +
                         '<td class="border rounded p-3 bg-white shadow-sm">' +
                             '<div class="price-badge-ecom">' +
-                                '<div class="d-flex justify-content-between align-items-center mb-1"><span class="small fw-bold text-danger"><i class="fas fa-laptop me-1"></i> E-TİCARET</span><span class="fw-bold fs-5">' + parseFloat(p.sellEcom || 0).toFixed(2) + ' ₺</span></div>' +
+                                '<div class="d-flex justify-content-between align-items-center mb-1"><span class="small fw-bold text-danger"><i class="fas fa-laptop me-1"></i> E-TİCARET' + (p.minQty > 1 ? ' (' + p.minQty + '\'LÜ)' : '') + '</span><span class="fw-bold fs-5">' + parseFloat(p.sellEcom || 0).toFixed(2) + ' ₺</span></div>' +
                                 '<div class="d-flex justify-content-between" style="font-size: 0.8rem;">' +
                                     '<span class="text-muted">Başabaş: ' + parseFloat(p.breakEvenEcom || 0).toFixed(2) + '</span>' +
                                     '<span class="fw-bold text-danger">NET: ' + parseFloat(p.netEcom || 0).toFixed(2) + ' ₺ <span class="badge bg-danger ms-1">%' + Math.round(p.marginEcom || 0) + '</span></span>' +
@@ -1354,7 +1372,7 @@ function importPlatformSettingsCSV(input) {
             document.getElementById('inp_whole').value = p.whole || "";
             document.getElementById('inp_qty').value = p.qty || ""; 
             document.getElementById('inp_buy').value = p.buy || ""; 
-            
+            document.getElementById('inp_min_qty').value = p.minQty || 1;
             // 0 değerlerinin silinip yerine varsayılan atamasını engellemek için güvenlik kontrolleri:
             document.getElementById('inp_ship').value = p.ship !== undefined ? p.ship : 83.93;
             document.getElementById('inp_tax').value = p.tax !== undefined ? p.tax : 20; 
@@ -1918,13 +1936,15 @@ function importPlatformSettingsCSV(input) {
         var commRate = parseFloat(document.getElementById('basket_comm').value) / 100 || 0;
         var sellEcom = parseFloat(document.getElementById('basket_sell_ecom').value) || 0;
         
-        // --- YENİ: TRENDYOL AKILLI SEPET KARGOSU ---
-        var shipEx = 83.93; // Varsayılan değer
-        if(sellEcom > 0) {
-            if(sellEcom < 200) shipEx = 42.91;
-            else if(sellEcom < 350) shipEx = 73.74;
+        // --- YENİ: SEPET KARGO BARAJI ---
+        var freeShipLimit = parseFloat(localStorage.getItem('freeShipLimit')) || 350;
+        var shipEx = parseFloat(document.getElementById('basket_ship').value) || 83.93; 
+        
+        if(sellEcom > 0 && sellEcom < freeShipLimit) {
+            shipEx = 0; // Sepet tutarı baraj altındaysa satıcı kargo ödemez
         }
         
+              
         // Hesaplanan kargoyu ekrandaki kutucuğa yansıt
         var shipInput = document.getElementById('basket_ship');
         if(shipInput) shipInput.value = shipEx;
@@ -2682,7 +2702,7 @@ function importPlatformSettingsCSV(input) {
         var item = {
             id: editId ? parseInt(editId) : Date.now(),
             cat: document.getElementById('inp_cat').value, name: document.getElementById('inp_name').value, bar: document.getElementById('inp_bar').value,
-            manuf: document.getElementById('inp_manuf').value, whole: document.getElementById('inp_whole').value, qty: document.getElementById('inp_qty').value || 0,
+            manuf: document.getElementById('inp_manuf').value, whole: document.getElementById('inp_whole').value, qty: document.getElementById('inp_qty').value || 0,minQty: parseInt(document.getElementById('inp_min_qty').value) || 1,
             buy: calc.buy || 0, ship: parseFloat(document.getElementById('inp_ship').value) || 0, tax: parseFloat(document.getElementById('inp_tax').value) || 0,
             comm: parseFloat(document.getElementById('inp_comm').value) || 0, marginEcom: (calc.marginEcom || 0) * 100, marginStore: (calc.marginStore || 0) * 100,service: parseFloat(document.getElementById('inp_service').value) || 0,
             pub: document.getElementById('inp_pub').checked, sellEcom: calc.sellEcom || 0, netEcom: calc.netEcom || 0, costEcom: calc.costEcom || 0, 
