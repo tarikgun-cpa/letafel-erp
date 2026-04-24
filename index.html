@@ -234,9 +234,17 @@
                     <div class="card-head bg-dark text-white"><i class="fas fa-calendar-alt me-2"></i> Aylık İşlem ve Kâr Tablosu</div>
                     <div class="card-body p-0">
                         <div class="table-responsive">
-                            <table class="table table-hover align-middle mb-0">
+                            <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
                                 <thead class="table-light">
-                                    <tr><th>Ay / Yıl</th><th>Satılan Ürün</th><th>Ciro</th><th>Ürün Maliyeti</th><th>Brüt Kâr</th><th>Ek Giderler</th><th>Net Kâr</th></tr>
+                                    <tr>
+                                        <th>Ay / Yıl</th>
+                                        <th>Ciro (KDV Dahil)</th>
+                                        <th>Maliyet (KDV Dahil)</th>
+                                        <th class="text-warning">KDV Farkı (Ödenecek)</th>
+                                        <th>Brüt Kâr</th>
+                                        <th>Giderler</th>
+                                        <th>Net Kâr</th>
+                                    </tr>
                                 </thead>
                                 <tbody id="dash_monthly_body"></tbody>
                             </table>
@@ -248,14 +256,17 @@
                 <div class="card-custom border-danger h-100">
                     <div class="card-head bg-danger text-white"><i class="fas fa-file-invoice-dollar me-2"></i> Aylık Sabit / Diğer Giderler</div>
                     <div class="card-body">
-                        <p class="small text-muted">Kira, personel, reklam veya ofis giderlerinizi ilgili aya işleyerek gerçek net kârınızı hesaplayın.</p>
-                        <select id="expense_month" class="form-select mb-2 fw-bold"></select>
+                        <select id="expense_month" class="form-select mb-2 fw-bold" onchange="renderExpenseList()"></select>
+                        <input type="text" id="expense_desc" class="form-control mb-2 form-control-sm" placeholder="Gider Açıklaması (Kira, Personel vb.)">
                         <div class="input-group input-group-sm mb-3">
-                            <span class="input-group-text bg-light text-dark fw-bold">Gider Tutarı:</span>
+                            <span class="input-group-text bg-light text-dark fw-bold">Tutar:</span>
                             <input type="number" id="expense_amount" class="form-control text-danger fw-bold" placeholder="0.00">
                             <span class="input-group-text bg-danger text-white">₺</span>
                         </div>
-                        <button class="btn btn-danger w-100 fw-bold" onclick="saveMonthlyExpense()">Gideri Kaydet</button>
+                        <button class="btn btn-danger w-100 fw-bold btn-sm" onclick="saveMonthlyExpense()">Gideri Kaydet</button>
+                        
+                        <div id="expense_list_container" class="mt-3 border-top pt-2" style="max-height: 120px; overflow-y: auto;">
+                            </div>
                     </div>
                 </div>
             </div>
@@ -808,7 +819,7 @@
       <div class="modal-body bg-light">
           <p class="text-muted small">Bu işlem, paketteki tüm ürünlerin stoğunu otomatik olarak düşecek ve "İşlemler" menüsüne kayıt edecektir.</p>
           <label class="small fw-bold text-secondary mb-1">Satış Kanalı</label>
-          <select id="sell_basket_channel" class="form-select mb-2 fw-bold text-dark">
+          <select id="sell_basket_channel" class="form-select mb-2 fw-bold text-dark" onchange="autoFillBasketPrice()">
               <option value="E-TİCARET">💻 E-Ticaret Platformu</option>
               <option value="MAĞAZA">🏬 Mağaza / Elden Satış</option>
           </select>
@@ -818,6 +829,12 @@
           
           <label class="small fw-bold text-secondary mb-1">Müşteri / Platform Adı</label>
           <input type="text" id="sell_basket_party" class="form-control mb-2" placeholder="Örn: Trendyol, Ahmet Yılmaz vb.">
+          
+          <label class="small fw-bold text-primary mb-1">Gerçekleşen Toplam Satış Tutarı</label>
+          <div class="input-group mb-2">
+              <input type="number" id="sell_basket_price" class="form-control fw-bold border-primary text-primary" placeholder="0.00">
+              <span class="input-group-text bg-primary text-white border-primary">₺</span>
+          </div>
           
           <label class="small fw-bold text-secondary mb-1">Açıklama / Sipariş No</label>
           <input type="text" id="sell_basket_desc" class="form-control mb-3" placeholder="Sipariş Kodu vs.">
@@ -2258,32 +2275,34 @@ if(p.variants && p.variants.length > 0) {
         var b = savedBaskets.find(function(x) { return x.id == bid; });
         if(!b) return;
 
-        // 1. Önce Stokları Kontrol Et
         var errors = [];
         b.items.forEach(function(item) {
             var p = productList.find(function(x) { return x.id == item.pid; });
-            if(!p) {
-                errors.push("Sistemden silinmiş ürün mevcut.");
-            } else {
+            if(!p) { errors.push("Sistemden silinmiş ürün mevcut."); } 
+            else {
                 var available = parseInt(p.qty) || 0;
-                if(available < item.qty) {
-                    errors.push(p.name + " (Gerekli: " + item.qty + ", Stoktaki: " + available + ")");
-                }
+                if(available < item.qty) errors.push(p.name + " (Gerekli: " + item.qty + ", Stoktaki: " + available + ")");
             }
         });
 
-        // 2. Eksik Varsa Uyar ve Durdur
-        if(errors.length > 0) {
-            alert("SATIŞ İPTAL EDİLDİ - STOK YETERSİZ!\n\nAşağıdaki ürünlerin stoklarını tamamlamanız gerekiyor:\n\n" + errors.join("\n"));
-            return;
-        }
+        if(errors.length > 0) { alert("SATIŞ İPTAL EDİLDİ - STOK YETERSİZ!\n\nEksik olanlar:\n\n" + errors.join("\n")); return; }
 
-        // 3. Sorun Yoksa Modalı Aç
         document.getElementById('sell_basket_date').valueAsDate = new Date();
         document.getElementById('sell_basket_party').value = "";
         document.getElementById('sell_basket_desc').value = "";
+        autoFillBasketPrice(); // Fiyatı otomatik doldur
         
         if(sellBasketModalInstance) sellBasketModalInstance.show();
+    }
+
+    function autoFillBasketPrice() {
+        if(!currentSellingBasketId) return;
+        var b = savedBaskets.find(function(x) { return x.id == currentSellingBasketId; });
+        var channel = document.getElementById('sell_basket_channel').value;
+        if(b) {
+            var suggested = channel === 'E-TİCARET' ? b.sellEcom : b.sellStore;
+            document.getElementById('sell_basket_price').value = suggested || 0;
+        }
     }
 
     function confirmSellBasket() {
@@ -2291,52 +2310,62 @@ if(p.variants && p.variants.length > 0) {
         var channel = document.getElementById('sell_basket_channel').value;
         var party = document.getElementById('sell_basket_party').value;
         var desc = document.getElementById('sell_basket_desc').value;
+        var actualTotalPrice = parseFloat(document.getElementById('sell_basket_price').value);
         
         if(!date) { alert("Lütfen tarih seçin."); return; }
+        if(isNaN(actualTotalPrice) || actualTotalPrice < 0) { alert("Geçerli bir satış tutarı girin."); return; }
 
         var b = savedBaskets.find(function(x) { return x.id == currentSellingBasketId; });
         if(!b) return;
 
-        // Sepetteki her ürün için stok düşüşü ve işlem kaydı oluştur
+        // 1. Orijinal toplam değeri bul (Orantı kurmak için)
+        var baseTotal = 0;
+        b.items.forEach(function(item) {
+            var p = productList.find(x => x.id == item.pid);
+            if(p) {
+                var pPrice = channel === 'E-TİCARET' ? (parseFloat(p.sellEcom) || parseFloat(p.buy) || 0) : (parseFloat(p.sellStore) || parseFloat(p.buy) || 0);
+                baseTotal += (pPrice * item.qty);
+            }
+        });
+
+        // 2. Ürünleri düş ve fiyatı paylaştırarak deftere yaz
         b.items.forEach(function(item) {
             var pIndex = productList.findIndex(function(x) { return x.id == item.pid; });
             if(pIndex > -1) {
                 var p = productList[pIndex];
-                p.qty = (parseInt(p.qty) || 0) - item.qty; // Ana Stoğu Düş
+                p.qty = (parseInt(p.qty) || 0) - item.qty; 
                 
-                // Varsa Varyant Stoğunu Düş
                 if(item.variant && p.variants) {
                     var vObj = p.variants.find(v => v.name === item.variant);
                     if(vObj) vObj.qty = Math.max(0, parseInt(vObj.qty) - item.qty);
                 }
 
-                // Deftere İşle
+                // Orantısal Fiyat Hesaplama
+                var pPrice = channel === 'E-TİCARET' ? (parseFloat(p.sellEcom) || parseFloat(p.buy) || 0) : (parseFloat(p.sellStore) || parseFloat(p.buy) || 0);
+                var weight = baseTotal > 0 ? ((pPrice * item.qty) / baseTotal) : (1 / b.items.length);
+                var allocatedTotalPrice = actualTotalPrice * weight;
+                var unitSalePrice = allocatedTotalPrice / item.qty; // Birim fiyata indirge
+
                 var vText = item.variant ? " (" + item.variant + ")" : "";
-                // Sepet satışını deftere yazarken "variant" bilgisini ekliyoruz
                 var tx = { 
-        id: Date.now() + Math.floor(Math.random()*10000), 
-        type: 'OUT', 
-        date: date, 
-        pid: p.id, 
-        qty: item.qty, 
-        party: party, 
-        desc: "Sepet Satışı: [" + b.name + "]" + vText + " " + channel + " - " + desc, 
-        price: null,
-        variant: item.variant // İŞTE EKSİK OLAN KISIM BURASIYDI
-    };
+                    id: Date.now() + Math.floor(Math.random()*10000), 
+                    type: 'OUT', 
+                    date: date, 
+                    pid: p.id, 
+                    qty: item.qty, 
+                    party: party, 
+                    desc: "Sepet: [" + b.name + "]" + vText + " " + channel + " - " + desc, 
+                    price: parseFloat(unitSalePrice.toFixed(2)), // Fiyat Artık Boş Değil!
+                    variant: item.variant 
+                };
                 txList.push(tx);
             }
         });
 
-        // Verileri kaydet
-        saveSafeData();
-        renderTable();
-        renderTxTable();
-        updateSelects(); // Diğer dropdownları güncelle
-        
+        saveSafeData(); renderTable(); renderTxTable(); updateSelects(); 
         if(sellBasketModalInstance) sellBasketModalInstance.hide();
         checkEntrepreneurLimit();
-        alert("Satış başarılı!\n\nPaket içerisindeki tüm ürünler stoklardan düşüldü ve İşlem Defterine kaydedildi.");
+        alert("Satış başarılı!\nFiyatlar orantılı olarak bölündü ve deftere işlendi.");
     }
 
     // ... (EXCEL VE PDF FONKSİYONLARI BURADA KORUNMUŞTUR) ...
@@ -3068,18 +3097,17 @@ function syncVariantTotal() {
         btnSave.disabled = false;
     }
   };
-  // --- DASHBOARD VE FİNANSAL ÖZET ---
-    window.monthlyExpenses = JSON.parse(localStorage.getItem('monthlyExpenses')) || {};
+  // Eski verileri (tek sayı olan giderleri) diziye (array) dönüştürme kontrolü
+    var rawExpenses = localStorage.getItem('monthlyExpenses');
+    window.monthlyExpenses = rawExpenses ? JSON.parse(rawExpenses) : {};
 
     window.renderDashboard = function() {
         var totalProds = productList.length;
-        var totalStock = 0;
-        var totalStockValue = 0;
+        var totalStock = 0; var totalStockValue = 0;
         
         productList.forEach(p => {
             var q = parseInt(p.qty) || 0;
-            totalStock += q;
-            totalStockValue += q * (parseFloat(p.buy) || 0);
+            totalStock += q; totalStockValue += q * (parseFloat(p.buy) || 0);
         });
 
         document.getElementById('dash_total_products').innerText = totalProds;
@@ -3087,82 +3115,142 @@ function syncVariantTotal() {
         document.getElementById('dash_total_cost').innerText = totalStockValue.toLocaleString('tr-TR', {minimumFractionDigits: 2}) + " ₺";
 
         var monthlyData = {};
-        var totalRevenue = 0;
-        var totalProfit = 0;
+        var totalRevenue = 0; var totalProfit = 0;
 
+        // KDV'li ve KDV'siz Ciro / Maliyet Hesaplamaları
         txList.forEach(tx => {
             if(tx.type === 'OUT' && tx.price !== null) { 
                 var dateObj = new Date(tx.date);
                 var monthKey = dateObj.getFullYear() + "-" + String(dateObj.getMonth() + 1).padStart(2, '0');
                 
                 if(!monthlyData[monthKey]) {
-                    monthlyData[monthKey] = { itemsSold: 0, revenue: 0, cost: 0 };
+                    monthlyData[monthKey] = { itemsSold: 0, revGross: 0, costGross: 0, kdvOut: 0, kdvIn: 0 };
                 }
                 
                 var p = productList.find(x => x.id == tx.pid);
-                var unitCost = p ? (parseFloat(p.buy) || 0) : 0; 
+                var unitCostGross = p ? (parseFloat(p.buy) || 0) : 0; 
+                var taxRate = p ? (parseFloat(p.tax) || 20) : 20;
+                var taxFactor = 1 + (taxRate / 100);
                 
-                var lineRev = tx.qty * tx.price;
-                var lineCost = tx.qty * unitCost;
+                var lineRevGross = tx.qty * tx.price;
+                var lineRevNet = lineRevGross / taxFactor;
+                var lineKdvOut = lineRevGross - lineRevNet; // Müşteriden Alınan KDV
+                
+                var lineCostGross = tx.qty * unitCostGross;
+                var lineCostNet = lineCostGross / taxFactor;
+                var lineKdvIn = lineCostGross - lineCostNet; // Toptancıya Ödenen KDV
                 
                 monthlyData[monthKey].itemsSold += tx.qty;
-                monthlyData[monthKey].revenue += lineRev;
-                monthlyData[monthKey].cost += lineCost;
+                monthlyData[monthKey].revGross += lineRevGross;
+                monthlyData[monthKey].costGross += lineCostGross;
+                monthlyData[monthKey].kdvOut += lineKdvOut;
+                monthlyData[monthKey].kdvIn += lineKdvIn;
                 
-                totalRevenue += lineRev;
-                totalProfit += (lineRev - lineCost);
+                totalRevenue += lineRevGross;
             }
         });
-
-        document.getElementById('dash_total_revenue').innerText = totalRevenue.toLocaleString('tr-TR', {minimumFractionDigits: 2}) + " ₺";
-        document.getElementById('dash_total_profit').innerText = totalProfit.toLocaleString('tr-TR', {minimumFractionDigits: 2}) + " ₺";
 
         var tbody = document.getElementById('dash_monthly_body');
         var monthSelect = document.getElementById('expense_month');
         if(tbody) tbody.innerHTML = '';
-        if(monthSelect) monthSelect.innerHTML = '';
-
+        
+        // Sadece ilk renderda select'i doldur (gider ekleyince resetlenmemesi için)
+        var shouldFillSelect = (monthSelect && monthSelect.options.length === 0);
         var sortedMonths = Object.keys(monthlyData).sort().reverse();
         
         sortedMonths.forEach(m => {
             var d = monthlyData[m];
-            var exp = parseFloat(window.monthlyExpenses[m]) || 0;
-            var brut = d.revenue - d.cost;
-            var net = brut - exp;
+            
+            // Giderleri Topla (Dizi Mantığı)
+            var expTotal = 0;
+            if(window.monthlyExpenses[m]) {
+                if(typeof window.monthlyExpenses[m] === 'number') { // Eski sürümden kalmaysa dönüştür
+                    window.monthlyExpenses[m] = [{desc: "Devreden Eski Gider", amt: window.monthlyExpenses[m]}];
+                    localStorage.setItem('monthlyExpenses', JSON.stringify(window.monthlyExpenses));
+                }
+                window.monthlyExpenses[m].forEach(e => expTotal += e.amt);
+            }
+            
+            var odenecekKdv = d.kdvOut - d.kdvIn;
+            if(odenecekKdv < 0) odenecekKdv = 0; // Devreden KDV matrahı (Basit yaklaşım)
+            
+            var brut = d.revGross - d.costGross - odenecekKdv;
+            var net = brut - expTotal;
+            totalProfit += net; // Tüm zamanların gerçek net kârı
             
             var parts = m.split('-');
             var mName = new Date(parts[0], parts[1]-1).toLocaleString('tr-TR', { month: 'long', year: 'numeric' });
 
-            monthSelect.innerHTML += `<option value="${m}">${mName}</option>`;
+            if(shouldFillSelect) monthSelect.innerHTML += `<option value="${m}">${mName}</option>`;
 
             tbody.innerHTML += `
                 <tr>
-                    <td class="fw-bold">${mName}</td>
-                    <td><span class="badge bg-secondary">${d.itemsSold} Adet</span></td>
-                    <td class="text-success fw-bold">${d.revenue.toLocaleString('tr-TR', {minimumFractionDigits: 2})} ₺</td>
-                    <td class="text-danger">${d.cost.toLocaleString('tr-TR', {minimumFractionDigits: 2})} ₺</td>
+                    <td class="fw-bold text-secondary">${mName}</td>
+                    <td class="text-success fw-bold">${d.revGross.toLocaleString('tr-TR', {minimumFractionDigits: 2})} ₺</td>
+                    <td class="text-danger">${d.costGross.toLocaleString('tr-TR', {minimumFractionDigits: 2})} ₺</td>
+                    <td class="text-warning fw-bold">${odenecekKdv.toLocaleString('tr-TR', {minimumFractionDigits: 2})} ₺</td>
                     <td class="text-primary fw-bold">${brut.toLocaleString('tr-TR', {minimumFractionDigits: 2})} ₺</td>
-                    <td class="text-danger">- ${exp.toLocaleString('tr-TR', {minimumFractionDigits: 2})} ₺</td>
+                    <td class="text-danger">- ${expTotal.toLocaleString('tr-TR', {minimumFractionDigits: 2})} ₺</td>
                     <td class="fw-bold ${net >= 0 ? 'text-success' : 'text-danger'}">${net.toLocaleString('tr-TR', {minimumFractionDigits: 2})} ₺</td>
                 </tr>
             `;
         });
         
-        if(sortedMonths.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Henüz finansal hesaplama yapılabilecek bir satış kaydı bulunmuyor.</td></tr>';
-        }
+        document.getElementById('dash_total_revenue').innerText = totalRevenue.toLocaleString('tr-TR', {minimumFractionDigits: 2}) + " ₺";
+        document.getElementById('dash_total_profit').innerText = totalProfit.toLocaleString('tr-TR', {minimumFractionDigits: 2}) + " ₺";
+        
+        if(sortedMonths.length === 0) tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Henüz finansal hesaplama yapılabilecek bir satış kaydı bulunmuyor.</td></tr>';
+        
+        renderExpenseList(); // Ay seçimine göre alttaki listeyi güncelle
     }
 
     window.saveMonthlyExpense = function() {
         var m = document.getElementById('expense_month').value;
+        var desc = document.getElementById('expense_desc').value.trim() || "Diğer Gider";
         var amt = parseFloat(document.getElementById('expense_amount').value) || 0;
-        if(!m) { alert("Lütfen ay seçin."); return; }
         
-        window.monthlyExpenses[m] = amt;
+        if(!m) { alert("Lütfen ay seçin."); return; }
+        if(amt <= 0) { alert("Lütfen geçerli bir gider tutarı girin."); return; }
+        
+        if(!window.monthlyExpenses[m]) window.monthlyExpenses[m] = [];
+        
+        window.monthlyExpenses[m].push({ id: Date.now(), desc: desc, amt: amt });
         localStorage.setItem('monthlyExpenses', JSON.stringify(window.monthlyExpenses));
+        
+        document.getElementById('expense_desc').value = "";
         document.getElementById('expense_amount').value = "";
+        
         window.renderDashboard();
-        alert("Gider kaydedildi ve net kâr güncellendi.");
+    }
+
+    // Seçilen aya ait çoklu giderleri listeleyen yardımcı fonksiyon
+    window.renderExpenseList = function() {
+        var m = document.getElementById('expense_month').value;
+        var container = document.getElementById('expense_list_container');
+        if(!container) return;
+        container.innerHTML = "";
+        
+        if(m && window.monthlyExpenses[m] && window.monthlyExpenses[m].length > 0) {
+            window.monthlyExpenses[m].forEach(function(exp, index) {
+                container.innerHTML += `
+                    <div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom border-danger">
+                        <div class="small fw-bold text-secondary text-truncate" style="max-width: 65%;">${exp.desc}</div>
+                        <div class="small text-danger fw-bold">${exp.amt.toLocaleString('tr-TR', {minimumFractionDigits: 2})} ₺ 
+                            <i class="fas fa-times ms-2 text-muted" style="cursor:pointer;" onclick="deleteExpense('${m}', ${index})"></i>
+                        </div>
+                    </div>`;
+            });
+        } else {
+            container.innerHTML = '<div class="small text-muted text-center py-2">Bu ay için kayıtlı ek gider yok.</div>';
+        }
+    }
+
+    window.deleteExpense = function(month, index) {
+        if(confirm("Bu gider kalemini silmek istediğinize emin misiniz?")) {
+            window.monthlyExpenses[month].splice(index, 1);
+            localStorage.setItem('monthlyExpenses', JSON.stringify(window.monthlyExpenses));
+            window.renderDashboard();
+        }
     }
 </script>
 </body>
