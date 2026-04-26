@@ -1991,7 +1991,17 @@ if(p.variants && p.variants.length > 0) {
             if(p) {
                 var vText = item.variant ? " (" + item.variant + ")" : "";
                 var imgUrl = (p.img && p.img.startsWith('http')) ? p.img : (p.img && p.img.startsWith('data:image')) ? p.img : PLACEHOLDER_IMG;
-                var descText = "Paket İçi Adet: " + item.qty;
+                
+                // VARYANT BİLGİSİNİ AÇIKLAMAYA EKLE
+                var variantInfo = "";
+                if (item.variant) {
+                    variantInfo = '<br><span style="font-size: 11px; color: var(--brand-green);"><i class="fas fa-check-circle"></i> Seçili: ' + item.variant + '</span>';
+                } else if (p.variants && p.variants.length > 0) {
+                    var vNames = p.variants.map(v => v.name).join(", ");
+                    variantInfo = '<br><span style="font-size: 11px; color: var(--brand-green);"><i class="fas fa-check-circle"></i> Seçenekler: ' + vNames + '</span>';
+                }
+
+                var descText = "Paket İçi Adet: " + item.qty + variantInfo;
                 var priceText = '<span style="font-size: 11px; color: #999; font-style: italic; letter-spacing: 1px;">PAKET İÇERİĞİ</span>';
                 html += createProduct(p.name + vText, descText, priceText, imgUrl);
             }
@@ -2007,7 +2017,7 @@ if(p.variants && p.variants.length > 0) {
     };
 
     // ==========================================
-    // YENİ: YAPAY ZEKA PAKET DANIŞMANI (V35 - MÜŞTERİ METNİ VE FİX)
+    // YENİ: YAPAY ZEKA PAKET DANIŞMANI (V36 - VARYANT DESTEĞİ VE BULUT FİX)
     // ==========================================
     var aiPackagesResult = [];
 
@@ -2022,10 +2032,12 @@ if(p.variants && p.variants.length > 0) {
         var modal = new bootstrap.Modal(document.getElementById('aiModal'));
         modal.show();
         var body = document.getElementById('aiModalBody');
-        body.innerHTML = '<div class="text-center p-5"><i class="fas fa-spinner fa-spin fa-3x text-primary mb-3"></i><br><h5 class="fw-bold">Yapay Zeka Hacim ve Satış Analizi Yapıyor...</h5><p class="text-muted">Kargo kutusu ebatlarınıza göre en verimli ve benzersiz kombinasyonlar hesaplanıyor. (Lütfen bekleyin)</p></div>';
+        body.innerHTML = '<div class="text-center p-5"><i class="fas fa-spinner fa-spin fa-3x text-primary mb-3"></i><br><h5 class="fw-bold">Yapay Zeka Hacim ve Satış Analizi Yapıyor...</h5><p class="text-muted">Kargo kutusu ebatlarınıza ve ürün varyantlarınıza göre en verimli kombinasyonlar hesaplanıyor. (Lütfen bekleyin)</p></div>';
 
+        // VARYANT BİLGİSİNİ DE YAPAY ZEKAYA GÖNDERİYORUZ
         var availableProducts = productList.filter(p => (parseInt(p.qty) || 0) > 0).map(p => {
-            return { id: p.id, isim: p.name, kategori: p.cat, fiyat: p.sellEcom || p.sellStore || p.buy };
+            var varyantlar = (p.variants && p.variants.length > 0) ? p.variants.map(v => v.name) : [];
+            return { id: p.id, isim: p.name, kategori: p.cat, fiyat: p.sellEcom || p.sellStore || p.buy, varyantlar: varyantlar };
         }).sort(() => Math.random() - 0.5);
 
         if(availableProducts.length < 2) {
@@ -2033,20 +2045,20 @@ if(p.variants && p.variants.length > 0) {
         }
 
         var promptText = `Sen üst düzey bir e-ticaret stratejisti ve lojistik uzmanısın. Lütfen aşağıdaki ürün listemi incele. 
-        Senden, HER SEFERİNDE TAMAMEN FARKLI, YARATICI VE ÖZGÜN 3 farklı çapraz satış paketi kombinasyonu üretmeni istiyorum.
+        Senden, HER SEFERİNDE TAMAMEN FARKLI 3 farklı çapraz satış paketi kombinasyonu üretmeni istiyorum.
         
         Kargo süreçlerimizi optimize etmek için 2 çeşit standart kutumuz var:
         - BÜYÜK KUTU: 26 x 12 x 7.5 cm
         - KÜÇÜK KUTU: 17 x 12 x 7.5 cm
-        Kozmetik ürünlerin isimlerinden fiziksel ebatlarını tahmin et ve bu kutulardan birine tam sığacak paketler oluştur.
         
         Her paket için:
         1. Pazarlama odaklı havalı bir isim ("name").
         2. Kargo uyumluluğu ("desc_box"): HANGİ KUTU (Büyük/Küçük) için uygun olduğu.
-        3. Müşteri Pazarlama Metni ("desc_customer"): Müşteriyi bu seti almaya ikna edecek, içeriğindeki ürünlerin uyumunu öven, zarif, satış odaklı ve kataloğa basılabilecek güzellikte 1-2 cümlelik şık bir metin. (Bu metinde KUTU BOYUTLARINDAN KESİNLİKLE BAHSETME).
+        3. Müşteri Pazarlama Metni ("desc_customer"): Müşteriyi bu seti almaya ikna edecek, içeriğindeki ürünlerin uyumunu öven zarif bir katalog metni.
+        4. Ürün Listesi ("items"): Eğer ürünün 'varyantlar' dizisi doluysa (örneğin renk seçenekleri varsa), o pakete en mantıklı olan BİR TANE varyantı seç ve 'variant' alanına yaz. Eğer varyant yoksa null bırak.
         
         SADECE geçerli bir JSON dizisi (array) döndür.
-        Format: [{"name": "Paket Adı", "desc_box": "Büyük kutuya uygundur.", "desc_customer": "Müşteriyi cezbedecek katalog metni...", "items": [{"pid": "ürün_id", "qty": 1}]}]
+        Format: [{"name": "Paket Adı", "desc_box": "Büyük kutuya uygundur.", "desc_customer": "Metin...", "items": [{"pid": "ürün_id", "qty": 1, "variant": "Seçilen Varyant Adı Veya null"}]}]
         Ürün Listesi: ${JSON.stringify(availableProducts)}`;
 
         let retries = 3;
@@ -2064,11 +2076,8 @@ if(p.variants && p.variants.length > 0) {
                 break;
             } catch (error) {
                 retries--;
-                if(retries === 0) {
-                    body.innerHTML = '<div class="alert alert-danger">Hata oluştu...</div>';
-                } else {
-                    await new Promise(r => setTimeout(r, 2000));
-                }
+                if(retries === 0) { body.innerHTML = '<div class="alert alert-danger">Hata oluştu... Lütfen tekrar deneyin.</div>'; } 
+                else { await new Promise(r => setTimeout(r, 2000)); }
             }
         }
     }
@@ -2078,48 +2087,59 @@ if(p.variants && p.variants.length > 0) {
         body.innerHTML = '<div class="alert alert-success small mb-3"><i class="fas fa-check-circle"></i> <b>Lojistik ve Satış Analizi Tamamlandı!</b></div>';
         
         aiPackagesResult.forEach((pkg, index) => {
-            var html = '<div class="card mb-3 border-primary shadow-sm"><div class="card-header bg-white d-flex justify-content-between align-items-center"><h6 class="fw-bold mb-0 text-primary"><i class="fas fa-box-open"></i> ' + pkg.name + '</h6><button class="btn btn-sm btn-success fw-bold" onclick="saveAIPackage(' + index + ', this)"><i class="fas fa-plus"></i> Paketi Kaydet</button></div><div class="card-body py-2">';
-            
-            html += '<div class="small text-muted mb-1"><i class="fas fa-box"></i> <b>Lojistik (Bize Özel):</b> ' + (pkg.desc_box || '') + '</div>';
+            var html = '<div class="card mb-3 border-primary shadow-sm"><div class="card-header bg-white d-flex justify-content-between align-items-center"><h6 class="fw-bold mb-0 text-primary"><i class="fas fa-box-open"></i> ' + pkg.name + '</h6><button class="btn btn-sm btn-success fw-bold" onclick="saveAIPackage(' + index + ', this)"><i class="fas fa-cloud-upload-alt"></i> Buluta Kaydet</button></div><div class="card-body py-2">';
+            html += '<div class="small text-muted mb-1"><i class="fas fa-box"></i> <b>Lojistik:</b> ' + (pkg.desc_box || '') + '</div>';
             html += '<div class="small text-success mb-2" style="font-style:italic;"><i class="fas fa-bullhorn"></i> <b>Katalog Metni:</b> "' + (pkg.desc_customer || '') + '"</div>';
             
             html += '<ul class="list-group list-group-flush small">';
             pkg.items.forEach(item => {
                 var prod = productList.find(p => p.id == item.pid);
                 var pName = prod ? prod.name : "<span class='text-danger'>Stokta Kalmayan Ürün</span>";
-                html += '<li class="list-group-item d-flex justify-content-between align-items-center p-1">' + pName + '<span class="badge bg-secondary rounded-pill">' + item.qty + ' Adet</span></li>';
+                var variantBadge = item.variant ? `<span class="badge bg-info text-dark ms-2 shadow-sm" style="font-size:0.65rem;"><i class="fas fa-tag"></i> ${item.variant}</span>` : "";
+                
+                html += '<li class="list-group-item d-flex justify-content-between align-items-center p-1"><span>' + pName + variantBadge + '</span><span class="badge bg-secondary rounded-pill">' + item.qty + ' Adet</span></li>';
             });
             html += '</ul></div></div>';
             body.innerHTML += html;
         });
     }
 
-    window.saveAIPackage = function(index, btnElement) {
+    // ARTIK SİSTEMİ DİREKT BULUTA KAYDEDİYOR Kİ DİĞERLERİ KAYBOLMASIN!
+    window.saveAIPackage = async function(index, btnElement) {
         var pkg = aiPackagesResult[index]; if(!pkg) return;
-        var newBasket = { 
-            id: Date.now() + Math.floor(Math.random()*1000), 
-            name: "✨ AI: " + pkg.name, 
-            desc: pkg.desc_customer || "", // YAPAY ZEKA METNİNİ VERİTABANINA KAYDET
-            items: pkg.items.map(item => ({pid: item.pid, qty: item.qty, variant: null})), // UNDEFINED HATASI ÇÖZÜMÜ
-            ship: 83.93, comm: 21, tax: 20, sellEcom: 0, sellStore: 0 
-        };
-        var totalEcom = 0, totalStore = 0;
         
+        var totalEcom = 0, totalStore = 0;
         pkg.items.forEach(item => {
             var p = productList.find(x => x.id == item.pid);
             if(p) { totalEcom += (parseFloat(p.sellEcom) || parseFloat(p.buy) || 0) * item.qty; totalStore += (parseFloat(p.sellStore) || parseFloat(p.buy) || 0) * item.qty; }
         });
         
-        newBasket.sellEcom = parseFloat((totalEcom * 0.90).toFixed(2)); newBasket.sellStore = parseFloat((totalStore * 0.90).toFixed(2));
-        savedBaskets.push(newBasket); 
-        localStorage.setItem(BASKET_DB_NAME, JSON.stringify(savedBaskets)); 
-        renderSavedBaskets();
+        var newBasket = { 
+            id: Date.now() + Math.floor(Math.random()*1000), 
+            name: "✨ AI: " + pkg.name, 
+            desc: pkg.desc_customer || "",
+            items: pkg.items.map(item => ({pid: item.pid, qty: item.qty, variant: item.variant || null})),
+            ship: 83.93, comm: 21, tax: 20, 
+            sellEcom: parseFloat((totalEcom * 0.90).toFixed(2)), 
+            sellStore: parseFloat((totalStore * 0.90).toFixed(2)) 
+        };
         
         if(btnElement) {
-            btnElement.innerHTML = '<i class="fas fa-check"></i> Kaydedildi';
+            btnElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Kaydediliyor...';
             btnElement.className = 'btn btn-sm btn-secondary fw-bold disabled';
         }
-        alert("Başarılı!\n'" + pkg.name + "' paketiniz arkaplanda kaydedildi.");
+
+        try {
+            await window.fbAddDoc(window.fbCollection(window.db, "baskets"), newBasket);
+            await window.fetchFromFirestore(); // Güncel listeyi çek
+            if(btnElement) btnElement.innerHTML = '<i class="fas fa-check"></i> Kaydedildi';
+        } catch (e) {
+            alert("Buluta kaydedilirken hata oluştu!");
+            if(btnElement) {
+                btnElement.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Buluta Kaydet';
+                btnElement.className = 'btn btn-sm btn-success fw-bold';
+            }
+        }
     }
 
     var totalBasketBuyCost = 0;
@@ -3083,25 +3103,24 @@ function syncVariantTotal() {
     window.confirmAddProductToCatalog = function() {
         var pid = document.getElementById('cat_stock_product').value;
         var priceType = document.getElementById('cat_price_type').value;
-        
         if(!pid) { alert("Lütfen bir ürün seçin!"); return; }
         
         var p = productList.find(x => x.id == pid);
         if(p) {
-            // Fiyat Tipini Belirle
             var price = priceType === 'ECOM' ? p.sellEcom : p.sellStore;
             var priceText = (parseFloat(price) || parseFloat(p.buy) || 0).toFixed(2) + " TL";
-            
-            // Görseli Belirle
             var imgUrl = (p.img && (p.img.startsWith('http') || p.img.startsWith('data:image'))) ? p.img : PLACEHOLDER_IMG;
             
-            // Kategoriyi Açıklama Kısmına Koy
-            var descText = p.cat || "Letafel Kozmetik";
+            // VARYANTLARI KATALOG KARTINA ZARİFÇE YAZDIR
+            var variantInfo = "";
+            if (p.variants && p.variants.length > 0) {
+                var vNames = p.variants.map(v => v.name).join(", ");
+                variantInfo = '<br><span style="font-size: 11px; color: var(--brand-green);"><i class="fas fa-check-circle"></i> Seçenekler: ' + vNames + '</span>';
+            }
+            var descText = (p.cat || "Letafel Kozmetik") + variantInfo;
             
-            // Ürün kartını oluştur ve ilgili kategoriye ekle
             var newProductHtml = createProduct(p.name, descText, priceText, imgUrl);
             targetCatalogCategory.insertAdjacentHTML('beforeend', newProductHtml);
-            
             bootstrap.Modal.getInstance(document.getElementById('catalogAddProductModal')).hide();
         }
     };
