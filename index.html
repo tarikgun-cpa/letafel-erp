@@ -1810,10 +1810,15 @@ if(p.variants && p.variants.length > 0) {
             document.getElementById('basket_name').value = nameInput;
         }
         
+        // Sepeti güncellerken eski AI metni varsa korumak için sepeti buluyoruz
+        var existingBasket = activeBasketId ? savedBaskets.find(function(x) { return x.id == activeBasketId; }) : null;
+
         var basketData = {
             id: activeBasketId || Date.now(),
             name: nameInput,
-            items: basketList.map(function(i) { return { pid: i.p.id, qty: i.qty, variant: i.variant }; }),
+            desc: existingBasket ? (existingBasket.desc || "") : "", // AI Müşteri Metnini Koru
+            // FIREBASE HATASI ÇÖZÜMÜ: variant tanımsızsa (undefined) null gönderiyoruz
+            items: basketList.map(function(i) { return { pid: i.p.id, qty: i.qty, variant: i.variant || null }; }), 
             ship: parseFloat(document.getElementById('basket_ship').value) || 0,
             comm: parseFloat(document.getElementById('basket_comm').value) || 0,
             tax: parseFloat(document.getElementById('basket_tax').value) || 0,
@@ -1823,13 +1828,10 @@ if(p.variants && p.variants.length > 0) {
 
         try {
             if(activeBasketId) {
-                var existingBasket = savedBaskets.find(function(x) { return x.id == activeBasketId; });
                 if(existingBasket && existingBasket.fbId) {
-                    // Firebase'de Mevcut Olanı Güncelle
                     const docRef = window.fbDoc(window.db, "baskets", existingBasket.fbId);
                     await window.fbUpdateDoc(docRef, basketData);
                 } else {
-                    // Firebase'e Yeni Ekle
                     await window.fbAddDoc(window.fbCollection(window.db, "baskets"), basketData);
                 }
             } else {
@@ -1837,14 +1839,12 @@ if(p.variants && p.variants.length > 0) {
                 await window.fbAddDoc(window.fbCollection(window.db, "baskets"), basketData);
             }
             
-            // Listeyi buluttan tazele
             await window.fetchFromFirestore();
             alert("Paket başarıyla BULUTA kaydedildi!");
         } catch(e) {
             alert("Buluta kaydedilirken hata oluştu: " + e.message);
         }
     }
-
     function loadSavedBasket(bid) {
         var b = savedBaskets.find(function(x) { return x.id == bid; });
         if(!b) return;
@@ -1954,48 +1954,45 @@ if(p.variants && p.variants.length > 0) {
         var b = savedBaskets.find(x => x.id == bid);
         if(!b) return;
 
-        // 1. Katalog Modülüne Geçiş Yap
         var links = document.querySelectorAll('.nav-link');
         var catLink = Array.from(links).find(l => l.innerText.includes('Katalog'));
         if(catLink) switchModule('mod-katalog', catLink);
 
-        // 2. Paket için özel katalog kategorisi oluştur
         var section = document.createElement('div'); 
         section.className = 'category-wrapper';
         
-        // Ürün sayısına göre otomatik ızgara seçimi
         var gridClass = 'grid-2';
         if (b.items.length === 1) gridClass = 'grid-1';
         else if (b.items.length === 3) gridClass = 'grid-3';
         else if (b.items.length >= 4) gridClass = 'grid-4';
 
-        // E-Ticaret veya Mağaza toplam fiyatını al (E-Ticaret öncelikli)
         var packagePrice = (parseFloat(b.sellEcom) || parseFloat(b.sellStore) || 0).toFixed(2);
 
-        // Kataloğa uygun, Letafel renklerinde şık Paket Fiyatı Banner'ı
-        var priceBanner = '<div contenteditable="true" style="width: 100%; max-width: 400px; margin: 0 auto 30px auto; background: var(--brand-green); border: 2px solid var(--brand-gold); border-radius: 8px; padding: 15px; text-align: center; color: var(--brand-gold); box-shadow: 0 4px 15px rgba(0,0,0,0.1); position: relative;">' +
+        var priceBanner = '<div contenteditable="true" style="width: 100%; max-width: 400px; margin: 0 auto 15px auto; background: var(--brand-green); border: 2px solid var(--brand-gold); border-radius: 8px; padding: 15px; text-align: center; color: var(--brand-gold); box-shadow: 0 4px 15px rgba(0,0,0,0.1); position: relative;">' +
                           '<div style="font-size: 11px; letter-spacing: 3px; font-weight: 600; font-family: \'Montserrat\', sans-serif; margin-bottom: 5px; opacity: 0.9;">ÖZEL SET FİYATI</div>' +
                           '<div style="font-size: 32px; font-weight: 700; font-family: \'Cormorant Garamond\', serif; letter-spacing: 1px;">' + packagePrice + ' ₺</div>' +
                           '</div>';
 
-        // Başlık ve Banner birleştiriliyor
-        var html = '<div class="category-header"><div class="category-title" contenteditable="true">' + b.name + ' (ÖZEL PAKET)</div><div class="ui-hide-on-capture" data-html2canvas-ignore="true"><select class="control-btn layout-selector" onchange="changeLayout(this)" title="Sütun Düzeni"><option value="grid-1" '+(gridClass=='grid-1'?'selected':'')+'>1\'li</option><option value="grid-2" '+(gridClass=='grid-2'?'selected':'')+'>2\'li</option><option value="grid-3" '+(gridClass=='grid-3'?'selected':'')+'>3\'lü</option><option value="grid-4" '+(gridClass=='grid-4'?'selected':'')+'>4\'lü</option></select><button class="control-btn" onclick="addProduct(this)">+ Ürün</button><button class="control-btn" style="color:red; border-color:red;" onclick="this.closest(\'.category-wrapper\').remove()">Sil</button></div></div>';
+        // KATALOG METNİ (AI'ın oluşturduğu müşteri pazarlama metni)
+        var descHtml = '';
+        if (b.desc && b.desc.trim() !== '') {
+            descHtml = '<div class="category-desc" contenteditable="true" style="font-family: \'Cormorant Garamond\', serif; font-size: 16px; font-style: italic; text-align: center; color: #555; max-width: 80%; margin: 0 auto 30px auto; line-height: 1.5;">"' + b.desc + '"</div>';
+        }
+
+        var html = '<div class="category-header"><div class="category-title" contenteditable="true">' + b.name + '</div><div class="ui-hide-on-capture" data-html2canvas-ignore="true"><select class="control-btn layout-selector" onchange="changeLayout(this)" title="Sütun Düzeni"><option value="grid-1" '+(gridClass=='grid-1'?'selected':'')+'>1\'li</option><option value="grid-2" '+(gridClass=='grid-2'?'selected':'')+'>2\'li</option><option value="grid-3" '+(gridClass=='grid-3'?'selected':'')+'>3\'lü</option><option value="grid-4" '+(gridClass=='grid-4'?'selected':'')+'>4\'lü</option></select><button class="control-btn" onclick="addProduct(this)">+ Ürün</button><button class="control-btn" style="color:red; border-color:red;" onclick="this.closest(\'.category-wrapper\').remove()">Sil</button></div></div>';
         
-        html += priceBanner; // Şık Fiyat Görselini Ekle
+        html += priceBanner; 
+        html += descHtml; // AI METNİNİ EKLE
 
         html += '<div class="category-products ' + gridClass + '">';
 
-        // 3. Paketteki ürünleri TEKİL FİYAT OLMADAN yerleştir
         b.items.forEach(function(item) {
             var p = productList.find(x => x.id == item.pid);
             if(p) {
                 var vText = item.variant ? " (" + item.variant + ")" : "";
                 var imgUrl = (p.img && p.img.startsWith('http')) ? p.img : (p.img && p.img.startsWith('data:image')) ? p.img : PLACEHOLDER_IMG;
                 var descText = "Paket İçi Adet: " + item.qty;
-                
-                // Bireysel fiyat yerine sepet/paket için şık bir ibare koyuyoruz
                 var priceText = '<span style="font-size: 11px; color: #999; font-style: italic; letter-spacing: 1px;">PAKET İÇERİĞİ</span>';
-                
                 html += createProduct(p.name + vText, descText, priceText, imgUrl);
             }
         });
@@ -2004,78 +2001,13 @@ if(p.variants && p.variants.length > 0) {
         section.innerHTML = html;
         document.getElementById('grid-area').appendChild(section);
 
-        // Ekranı yeni eklenen alana kaydır
         window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
         
-        alert("Paket Kataloğa Aktarıldı!\nÜrünlerin bireysel fiyatları gizlendi ve paketin üstüne şık bir toplam sepet fiyatı eklendi.");
+        alert("Paket Kataloğa Aktarıldı!\nYapay zekanın müşteriler için yazdığı pazarlama metni de fiyatın altına şık bir şekilde eklendi.");
     };
 
     // ==========================================
-    // YENİ: YAPAY ZEKA PAKET DANIŞMANI
-    // ==========================================
-    var aiPackagesResult = [];
-
-    window.openAIModal = async function() {
-        // API Anahtarını Tarayıcı Hafızasında Tutar
-        var apiKey = localStorage.getItem('gemini_api_key');
-        if(!apiKey) {
-            apiKey = prompt("Lütfen ücretsiz Google Gemini API anahtarınızı girin:\n(Almak için: aistudio.google.com/app/apikey)");
-            if(!apiKey) return;
-            localStorage.setItem('gemini_api_key', apiKey);
-        }
-
-        var modal = new bootstrap.Modal(document.getElementById('aiModal'));
-        modal.show();
-        
-        var body = document.getElementById('aiModalBody');
-        body.innerHTML = '<div class="text-center p-5"><i class="fas fa-spinner fa-spin fa-3x text-primary mb-3"></i><br><h5 class="fw-bold">Yapay Zeka ürünlerinizi inceliyor...</h5><p class="text-muted">Kozmetik uzmanı modelimiz stoklarınızı tarıyor ve kârlı paketler oluşturuyor. (10-15 saniye sürebilir)</p></div>';
-
-        // Sadece stoğu olan ürünleri yapay zekaya gönder (Maliyet ve Token tasarrufu)
-        var availableProducts = productList.filter(p => (parseInt(p.qty) || 0) > 0).map(p => {
-            return { id: p.id, isim: p.name, kategori: p.cat, fiyat: p.sellEcom || p.sellStore || p.buy };
-        });
-
-        if(availableProducts.length < 2) {
-            body.innerHTML = '<div class="alert alert-warning">Yeterli ürün yok. Çapraz satış paketi oluşturmak için en az 2 adet stoklu ürününüz olmalı.</div>';
-            return;
-        }
-
-        // Yapay Zekaya Verilecek Komut (Prompt)
-        var promptText = `Sen uzman bir kozmetik satış danışmanısın. Aşağıdaki ürün listemi incele ve birbiriyle uyumlu (örneğin; şampuan ile saç kremi veya fondöten ile makyaj süngeri) 3 farklı "Çapraz Satış Paketi" oluştur. 
-        SADECE geçerli bir JSON dizisi (array) döndür. Hiçbir açıklama, markdown veya ekstra metin kullanma. 
-        JSON Formatı zorunlu olarak şöyle olmalıdır: [{"name": "Cilt Yenileme Seti", "items": [{"pid": "ürün_id", "qty": 1}]}]
-        Ürün Listesi: ${JSON.stringify(availableProducts)}`;
-
-        try {
-            // DÜZELTİLEN KISIM: gemini-2.5-flash kullanıldı
-            let response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: promptText }] }],
-                    generationConfig: { temperature: 0.7 } // Yaratıcılık oranı
-                })
-            });
-
-            let data = await response.json();
-            
-            if(data.error) throw new Error(data.error.message);
-
-            let aiText = data.candidates[0].content.parts[0].text;
-            // Markdown temizliği
-            aiText = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
-            
-            aiPackagesResult = JSON.parse(aiText);
-            renderAIResults();
-
-        } catch (error) {
-            console.error(error);
-            body.innerHTML = '<div class="alert alert-danger">Hata oluştu: ' + error.message + '<br><button class="btn btn-sm btn-outline-danger mt-3" onclick="localStorage.removeItem(\'gemini_api_key\'); document.getElementById(\'aiModal\').querySelector(\'.btn-close\').click(); openAIModal();">API Anahtarını Sıfırla ve Tekrar Dene</button></div>';
-        }
-    }
-
-    // ==========================================
-    // YENİ: YAPAY ZEKA PAKET DANIŞMANI (V34 - KUTU OPTİMİZASYONLU & ÇOKLU KAYIT)
+    // YENİ: YAPAY ZEKA PAKET DANIŞMANI (V35 - MÜŞTERİ METNİ VE FİX)
     // ==========================================
     var aiPackagesResult = [];
 
@@ -2092,7 +2024,6 @@ if(p.variants && p.variants.length > 0) {
         var body = document.getElementById('aiModalBody');
         body.innerHTML = '<div class="text-center p-5"><i class="fas fa-spinner fa-spin fa-3x text-primary mb-3"></i><br><h5 class="fw-bold">Yapay Zeka Hacim ve Satış Analizi Yapıyor...</h5><p class="text-muted">Kargo kutusu ebatlarınıza göre en verimli ve benzersiz kombinasyonlar hesaplanıyor. (Lütfen bekleyin)</p></div>';
 
-        // Daha fazla çeşitlilik sağlamak için rastgele sıralanmış (shuffled) ürün listesi gönderiyoruz
         var availableProducts = productList.filter(p => (parseInt(p.qty) || 0) > 0).map(p => {
             return { id: p.id, isim: p.name, kategori: p.cat, fiyat: p.sellEcom || p.sellStore || p.buy };
         }).sort(() => Math.random() - 0.5);
@@ -2101,22 +2032,21 @@ if(p.variants && p.variants.length > 0) {
             body.innerHTML = '<div class="alert alert-warning">Yeterli ürün yok. Çapraz satış paketi oluşturmak için en az 2 adet stoklu ürününüz olmalı.</div>'; return;
         }
 
-        // Hacim tahmini ve tekrara düşmemeyi zorlayan gelişmiş prompt
         var promptText = `Sen üst düzey bir e-ticaret stratejisti ve lojistik uzmanısın. Lütfen aşağıdaki ürün listemi incele. 
-        Senden, HER SEFERİNDE TAMAMEN FARKLI, YARATICI VE ÖZGÜN kombinasyonlar üretmeni istiyorum. Sürekli tekrarlanan rutin setlerden kesinlikle kaçın!
+        Senden, HER SEFERİNDE TAMAMEN FARKLI, YARATICI VE ÖZGÜN 3 farklı çapraz satış paketi kombinasyonu üretmeni istiyorum.
         
         Kargo süreçlerimizi optimize etmek için 2 çeşit standart kutumuz var:
-        - BÜYÜK KUTU: 26 x 12 x 7.5 cm (Daha çok ürün veya geniş hacimli ürünler alır)
-        - KÜÇÜK KUTU: 17 x 12 x 7.5 cm (Daha az veya küçük hacimli ürünler alır)
-        
-        Kozmetik ürünlerin (şampuan, fırça, sünger, serum vb.) isimlerinden fiziksel ebatlarını ve hacimlerini tahmin et. Oluşturacağın 3 farklı 'Çapraz Satış Paketi', bu kutulardan birine (Büyük veya Küçük) ne çok sıkışık ne de çok boş kalacak şekilde (optimal hacimde) TAM SIĞMALI.
+        - BÜYÜK KUTU: 26 x 12 x 7.5 cm
+        - KÜÇÜK KUTU: 17 x 12 x 7.5 cm
+        Kozmetik ürünlerin isimlerinden fiziksel ebatlarını tahmin et ve bu kutulardan birine tam sığacak paketler oluştur.
         
         Her paket için:
         1. Pazarlama odaklı havalı bir isim ("name").
-        2. Bu ürünlerin neden mükemmel uyumlu olduğunu anlatan ve sonunda HANGİ KUTU (Büyük Kutu veya Küçük Kutu) için uygun olduğunu spesifik olarak belirten vurucu bir açıklama ("desc") yaz.
+        2. Kargo uyumluluğu ("desc_box"): HANGİ KUTU (Büyük/Küçük) için uygun olduğu.
+        3. Müşteri Pazarlama Metni ("desc_customer"): Müşteriyi bu seti almaya ikna edecek, içeriğindeki ürünlerin uyumunu öven, zarif, satış odaklı ve kataloğa basılabilecek güzellikte 1-2 cümlelik şık bir metin. (Bu metinde KUTU BOYUTLARINDAN KESİNLİKLE BAHSETME).
         
-        SADECE geçerli bir JSON dizisi (array) döndür. Hiçbir açıklama, markdown veya ekstra metin kullanma. 
-        Format: [{"name": "Paket Adı", "desc": "Açıklama... (Büyük Kutuya Uygundur)", "items": [{"pid": "ürün_id", "qty": 1}]}]
+        SADECE geçerli bir JSON dizisi (array) döndür.
+        Format: [{"name": "Paket Adı", "desc_box": "Büyük kutuya uygundur.", "desc_customer": "Müşteriyi cezbedecek katalog metni...", "items": [{"pid": "ürün_id", "qty": 1}]}]
         Ürün Listesi: ${JSON.stringify(availableProducts)}`;
 
         let retries = 3;
@@ -2124,7 +2054,6 @@ if(p.variants && p.variants.length > 0) {
             try {
                 let response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey, {
                     method: "POST", headers: { "Content-Type": "application/json" },
-                    // Temperature 0.9'a çıkarılarak AI'ın daha yaratıcı/rastgele sonuçlar vermesi sağlandı
                     body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }], generationConfig: { temperature: 0.95 } })
                 });
                 let data = await response.json();
@@ -2136,7 +2065,7 @@ if(p.variants && p.variants.length > 0) {
             } catch (error) {
                 retries--;
                 if(retries === 0) {
-                    body.innerHTML = '<div class="alert alert-danger">Hata oluştu: ' + error.message + '<br>Google sunucuları şu an çok yoğun. Lütfen 1 dakika sonra tekrar deneyin.<br><button class="btn btn-sm btn-outline-danger mt-3" onclick="localStorage.removeItem(\'gemini_api_key\'); document.getElementById(\'aiModal\').querySelector(\'.btn-close\').click(); openAIModal();">API Anahtarını Sıfırla</button></div>';
+                    body.innerHTML = '<div class="alert alert-danger">Hata oluştu...</div>';
                 } else {
                     await new Promise(r => setTimeout(r, 2000));
                 }
@@ -2146,10 +2075,15 @@ if(p.variants && p.variants.length > 0) {
 
     window.renderAIResults = function() {
         var body = document.getElementById('aiModalBody');
-        body.innerHTML = '<div class="alert alert-success small mb-3"><i class="fas fa-check-circle"></i> <b>Lojistik ve Satış Analizi Tamamlandı!</b> Kutularınıza optimal sığacak ve birbirini tekrarlamayan paket önerileri:</div>';
+        body.innerHTML = '<div class="alert alert-success small mb-3"><i class="fas fa-check-circle"></i> <b>Lojistik ve Satış Analizi Tamamlandı!</b></div>';
         
         aiPackagesResult.forEach((pkg, index) => {
-            var html = '<div class="card mb-3 border-primary shadow-sm"><div class="card-header bg-white d-flex justify-content-between align-items-center"><h6 class="fw-bold mb-0 text-primary"><i class="fas fa-box-open"></i> ' + pkg.name + '</h6><button class="btn btn-sm btn-success fw-bold" onclick="saveAIPackage(' + index + ', this)"><i class="fas fa-plus"></i> Paketi Kaydet</button></div><div class="card-body py-2"><p class="small text-muted mb-2"><i>"' + (pkg.desc || '') + '"</i></p><ul class="list-group list-group-flush small">';
+            var html = '<div class="card mb-3 border-primary shadow-sm"><div class="card-header bg-white d-flex justify-content-between align-items-center"><h6 class="fw-bold mb-0 text-primary"><i class="fas fa-box-open"></i> ' + pkg.name + '</h6><button class="btn btn-sm btn-success fw-bold" onclick="saveAIPackage(' + index + ', this)"><i class="fas fa-plus"></i> Paketi Kaydet</button></div><div class="card-body py-2">';
+            
+            html += '<div class="small text-muted mb-1"><i class="fas fa-box"></i> <b>Lojistik (Bize Özel):</b> ' + (pkg.desc_box || '') + '</div>';
+            html += '<div class="small text-success mb-2" style="font-style:italic;"><i class="fas fa-bullhorn"></i> <b>Katalog Metni:</b> "' + (pkg.desc_customer || '') + '"</div>';
+            
+            html += '<ul class="list-group list-group-flush small">';
             pkg.items.forEach(item => {
                 var prod = productList.find(p => p.id == item.pid);
                 var pName = prod ? prod.name : "<span class='text-danger'>Stokta Kalmayan Ürün</span>";
@@ -2160,10 +2094,15 @@ if(p.variants && p.variants.length > 0) {
         });
     }
 
-    // Pencere kapatılmadan kaydetmeyi sağlayan güncellenmiş fonksiyon
     window.saveAIPackage = function(index, btnElement) {
         var pkg = aiPackagesResult[index]; if(!pkg) return;
-        var newBasket = { id: Date.now() + Math.floor(Math.random()*1000), name: "✨ AI: " + pkg.name, items: pkg.items, ship: 83.93, comm: 21, tax: 20, sellEcom: 0, sellStore: 0 };
+        var newBasket = { 
+            id: Date.now() + Math.floor(Math.random()*1000), 
+            name: "✨ AI: " + pkg.name, 
+            desc: pkg.desc_customer || "", // YAPAY ZEKA METNİNİ VERİTABANINA KAYDET
+            items: pkg.items.map(item => ({pid: item.pid, qty: item.qty, variant: null})), // UNDEFINED HATASI ÇÖZÜMÜ
+            ship: 83.93, comm: 21, tax: 20, sellEcom: 0, sellStore: 0 
+        };
         var totalEcom = 0, totalStore = 0;
         
         pkg.items.forEach(item => {
@@ -2176,14 +2115,11 @@ if(p.variants && p.variants.length > 0) {
         localStorage.setItem(BASKET_DB_NAME, JSON.stringify(savedBaskets)); 
         renderSavedBaskets();
         
-        // Butonu "Kaydedildi" durumuna geçir (Ekranı Kapatma!)
         if(btnElement) {
             btnElement.innerHTML = '<i class="fas fa-check"></i> Kaydedildi';
             btnElement.className = 'btn btn-sm btn-secondary fw-bold disabled';
         }
-        
-        // Toast mesajı benzeri geçici bir alert
-        alert("Başarılı!\n'" + pkg.name + "' paketiniz arkaplanda kaydedildi. Pencereyi kapatmadan diğer paketleri de kaydetmeye devam edebilirsiniz.");
+        alert("Başarılı!\n'" + pkg.name + "' paketiniz arkaplanda kaydedildi.");
     }
 
     var totalBasketBuyCost = 0;
