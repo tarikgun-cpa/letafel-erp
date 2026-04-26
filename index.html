@@ -2075,7 +2075,7 @@ if(p.variants && p.variants.length > 0) {
     }
 
     // ==========================================
-    // YENİ: YAPAY ZEKA PAKET DANIŞMANI (V33 - GÜÇLENDİRİLMİŞ & RETRY EKLENMİŞ)
+    // YENİ: YAPAY ZEKA PAKET DANIŞMANI (V34 - KUTU OPTİMİZASYONLU & ÇOKLU KAYIT)
     // ==========================================
     var aiPackagesResult = [];
 
@@ -2090,20 +2090,33 @@ if(p.variants && p.variants.length > 0) {
         var modal = new bootstrap.Modal(document.getElementById('aiModal'));
         modal.show();
         var body = document.getElementById('aiModalBody');
-        body.innerHTML = '<div class="text-center p-5"><i class="fas fa-spinner fa-spin fa-3x text-primary mb-3"></i><br><h5 class="fw-bold">Yapay Zeka Stratejisti Analiz Ediyor...</h5><p class="text-muted">Müşteri satın alma psikolojisi taranıyor ve kârlı pazarlama paketleri kurgulanıyor. (Lütfen bekleyin)</p></div>';
+        body.innerHTML = '<div class="text-center p-5"><i class="fas fa-spinner fa-spin fa-3x text-primary mb-3"></i><br><h5 class="fw-bold">Yapay Zeka Hacim ve Satış Analizi Yapıyor...</h5><p class="text-muted">Kargo kutusu ebatlarınıza göre en verimli ve benzersiz kombinasyonlar hesaplanıyor. (Lütfen bekleyin)</p></div>';
 
+        // Daha fazla çeşitlilik sağlamak için rastgele sıralanmış (shuffled) ürün listesi gönderiyoruz
         var availableProducts = productList.filter(p => (parseInt(p.qty) || 0) > 0).map(p => {
             return { id: p.id, isim: p.name, kategori: p.cat, fiyat: p.sellEcom || p.sellStore || p.buy };
-        });
+        }).sort(() => Math.random() - 0.5);
 
         if(availableProducts.length < 2) {
             body.innerHTML = '<div class="alert alert-warning">Yeterli ürün yok. Çapraz satış paketi oluşturmak için en az 2 adet stoklu ürününüz olmalı.</div>'; return;
         }
 
-        var promptText = `Sen üst düzey bir kozmetik marka stratejisti ve satış uzmanısın. Aşağıdaki ürün listemi incele. Müşterinin satın alma dürtüsünü artıracak, birbirini kusursuz tamamlayan 3 farklı 'Çapraz Satış Paketi' kurgula. (Örn: Gündüz Işıltısı Seti, Kusursuz Ten Paketi vb.).
-        Her paket için pazarlama odaklı havalı bir isim ("name") ve bu ürünlerin neden bir arada kullanılması gerektiğini anlatan 2 cümlelik vurucu bir açıklama ("desc") yaz.
+        // Hacim tahmini ve tekrara düşmemeyi zorlayan gelişmiş prompt
+        var promptText = `Sen üst düzey bir e-ticaret stratejisti ve lojistik uzmanısın. Lütfen aşağıdaki ürün listemi incele. 
+        Senden, HER SEFERİNDE TAMAMEN FARKLI, YARATICI VE ÖZGÜN kombinasyonlar üretmeni istiyorum. Sürekli tekrarlanan rutin setlerden kesinlikle kaçın!
+        
+        Kargo süreçlerimizi optimize etmek için 2 çeşit standart kutumuz var:
+        - BÜYÜK KUTU: 26 x 12 x 7.5 cm (Daha çok ürün veya geniş hacimli ürünler alır)
+        - KÜÇÜK KUTU: 17 x 12 x 7.5 cm (Daha az veya küçük hacimli ürünler alır)
+        
+        Kozmetik ürünlerin (şampuan, fırça, sünger, serum vb.) isimlerinden fiziksel ebatlarını ve hacimlerini tahmin et. Oluşturacağın 3 farklı 'Çapraz Satış Paketi', bu kutulardan birine (Büyük veya Küçük) ne çok sıkışık ne de çok boş kalacak şekilde (optimal hacimde) TAM SIĞMALI.
+        
+        Her paket için:
+        1. Pazarlama odaklı havalı bir isim ("name").
+        2. Bu ürünlerin neden mükemmel uyumlu olduğunu anlatan ve sonunda HANGİ KUTU (Büyük Kutu veya Küçük Kutu) için uygun olduğunu spesifik olarak belirten vurucu bir açıklama ("desc") yaz.
+        
         SADECE geçerli bir JSON dizisi (array) döndür. Hiçbir açıklama, markdown veya ekstra metin kullanma. 
-        Format: [{"name": "Paket Adı", "desc": "Neden alınmalı açıklaması...", "items": [{"pid": "ürün_id", "qty": 1}]}]
+        Format: [{"name": "Paket Adı", "desc": "Açıklama... (Büyük Kutuya Uygundur)", "items": [{"pid": "ürün_id", "qty": 1}]}]
         Ürün Listesi: ${JSON.stringify(availableProducts)}`;
 
         let retries = 3;
@@ -2111,20 +2124,21 @@ if(p.variants && p.variants.length > 0) {
             try {
                 let response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey, {
                     method: "POST", headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }], generationConfig: { temperature: 0.8 } })
+                    // Temperature 0.9'a çıkarılarak AI'ın daha yaratıcı/rastgele sonuçlar vermesi sağlandı
+                    body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }], generationConfig: { temperature: 0.95 } })
                 });
                 let data = await response.json();
                 if(data.error) throw new Error(data.error.message);
                 let aiText = data.candidates[0].content.parts[0].text.replace(/```json/g, '').replace(/```/g, '').trim();
                 aiPackagesResult = JSON.parse(aiText);
                 renderAIResults();
-                break; // Başarılı olursa döngüden çık
+                break;
             } catch (error) {
                 retries--;
                 if(retries === 0) {
                     body.innerHTML = '<div class="alert alert-danger">Hata oluştu: ' + error.message + '<br>Google sunucuları şu an çok yoğun. Lütfen 1 dakika sonra tekrar deneyin.<br><button class="btn btn-sm btn-outline-danger mt-3" onclick="localStorage.removeItem(\'gemini_api_key\'); document.getElementById(\'aiModal\').querySelector(\'.btn-close\').click(); openAIModal();">API Anahtarını Sıfırla</button></div>';
                 } else {
-                    await new Promise(r => setTimeout(r, 2000)); // 2 saniye bekle ve tekrar dene
+                    await new Promise(r => setTimeout(r, 2000));
                 }
             }
         }
@@ -2132,9 +2146,10 @@ if(p.variants && p.variants.length > 0) {
 
     window.renderAIResults = function() {
         var body = document.getElementById('aiModalBody');
-        body.innerHTML = '<div class="alert alert-success small mb-3"><i class="fas fa-check-circle"></i> <b>Analiz Tamamlandı!</b> Uzman stratejistimizin sizin için kurguladığı premium paketler aşağıdadır:</div>';
+        body.innerHTML = '<div class="alert alert-success small mb-3"><i class="fas fa-check-circle"></i> <b>Lojistik ve Satış Analizi Tamamlandı!</b> Kutularınıza optimal sığacak ve birbirini tekrarlamayan paket önerileri:</div>';
+        
         aiPackagesResult.forEach((pkg, index) => {
-            var html = '<div class="card mb-3 border-primary shadow-sm"><div class="card-header bg-white d-flex justify-content-between align-items-center"><h6 class="fw-bold mb-0 text-primary"><i class="fas fa-box-open"></i> ' + pkg.name + '</h6><button class="btn btn-sm btn-success fw-bold" onclick="saveAIPackage(' + index + ')"><i class="fas fa-plus"></i> Paketi Kaydet</button></div><div class="card-body py-2"><p class="small text-muted mb-2"><i>"' + (pkg.desc || '') + '"</i></p><ul class="list-group list-group-flush small">';
+            var html = '<div class="card mb-3 border-primary shadow-sm"><div class="card-header bg-white d-flex justify-content-between align-items-center"><h6 class="fw-bold mb-0 text-primary"><i class="fas fa-box-open"></i> ' + pkg.name + '</h6><button class="btn btn-sm btn-success fw-bold" onclick="saveAIPackage(' + index + ', this)"><i class="fas fa-plus"></i> Paketi Kaydet</button></div><div class="card-body py-2"><p class="small text-muted mb-2"><i>"' + (pkg.desc || '') + '"</i></p><ul class="list-group list-group-flush small">';
             pkg.items.forEach(item => {
                 var prod = productList.find(p => p.id == item.pid);
                 var pName = prod ? prod.name : "<span class='text-danger'>Stokta Kalmayan Ürün</span>";
@@ -2145,18 +2160,30 @@ if(p.variants && p.variants.length > 0) {
         });
     }
 
-    window.saveAIPackage = function(index) {
+    // Pencere kapatılmadan kaydetmeyi sağlayan güncellenmiş fonksiyon
+    window.saveAIPackage = function(index, btnElement) {
         var pkg = aiPackagesResult[index]; if(!pkg) return;
-        var newBasket = { id: Date.now(), name: "✨ AI: " + pkg.name, items: pkg.items, ship: 83.93, comm: 21, tax: 20, sellEcom: 0, sellStore: 0 };
+        var newBasket = { id: Date.now() + Math.floor(Math.random()*1000), name: "✨ AI: " + pkg.name, items: pkg.items, ship: 83.93, comm: 21, tax: 20, sellEcom: 0, sellStore: 0 };
         var totalEcom = 0, totalStore = 0;
+        
         pkg.items.forEach(item => {
             var p = productList.find(x => x.id == item.pid);
             if(p) { totalEcom += (parseFloat(p.sellEcom) || parseFloat(p.buy) || 0) * item.qty; totalStore += (parseFloat(p.sellStore) || parseFloat(p.buy) || 0) * item.qty; }
         });
+        
         newBasket.sellEcom = parseFloat((totalEcom * 0.90).toFixed(2)); newBasket.sellStore = parseFloat((totalStore * 0.90).toFixed(2));
-        savedBaskets.push(newBasket); localStorage.setItem(BASKET_DB_NAME, JSON.stringify(savedBaskets)); renderSavedBaskets();
-        bootstrap.Modal.getInstance(document.getElementById('aiModal')).hide();
-        alert("Harika Seçim!\n'" + pkg.name + "' başarıyla Kayıtlı Paketlerinize eklendi.");
+        savedBaskets.push(newBasket); 
+        localStorage.setItem(BASKET_DB_NAME, JSON.stringify(savedBaskets)); 
+        renderSavedBaskets();
+        
+        // Butonu "Kaydedildi" durumuna geçir (Ekranı Kapatma!)
+        if(btnElement) {
+            btnElement.innerHTML = '<i class="fas fa-check"></i> Kaydedildi';
+            btnElement.className = 'btn btn-sm btn-secondary fw-bold disabled';
+        }
+        
+        // Toast mesajı benzeri geçici bir alert
+        alert("Başarılı!\n'" + pkg.name + "' paketiniz arkaplanda kaydedildi. Pencereyi kapatmadan diğer paketleri de kaydetmeye devam edebilirsiniz.");
     }
 
     var totalBasketBuyCost = 0;
