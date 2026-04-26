@@ -160,36 +160,64 @@
     </div>
 </div>
 
-<div class="header-bar">
+<style>
+    .custom-nav-link {
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 500;
+        font-size: 0.95rem;
+        color: #eaf0ec !important; /* Açık yeşil/beyaz tonu */
+        cursor: pointer;
+        border-radius: 8px;
+        margin: 0 4px;
+        transition: all 0.3s ease;
+        padding: 10px 16px !important;
+        letter-spacing: 0.5px;
+    }
+    .custom-nav-link:hover {
+        background-color: rgba(197, 160, 89, 0.15); /* Altın rengi hafif transparan parlama */
+        color: var(--brand-gold) !important;
+        transform: translateY(-2px);
+    }
+    .custom-nav-link.active {
+        background-color: var(--brand-gold) !important;
+        color: #ffffff !important;
+        font-weight: 700;
+        box-shadow: 0 4px 12px rgba(197, 160, 89, 0.4);
+    }
+    .navbar-toggler { border-color: var(--brand-gold) !important; }
+    .navbar-toggler-icon { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28197, 160, 89, 1%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") !important; }
+</style>
+
+<div class="header-bar" style="background: linear-gradient(to right, #ffffff, #fcfaf5); border-bottom: 4px solid var(--brand-gold); padding: 25px 0; box-shadow: 0 5px 20px rgba(0,0,0,0.05);">
     <div class="container d-flex align-items-center gap-4">
         <input type="file" id="mainLogoUpload" accept="image/*" style="display:none" onchange="uploadMainLogo(this)">
-        <div class="logo-area" onclick="document.getElementById('mainLogoUpload').click()" title="Firma Logosu Yükle">
+        <div class="logo-area shadow-sm" onclick="document.getElementById('mainLogoUpload').click()" title="Firma Logosu Yükle" style="border-color: var(--brand-gold); background: var(--brand-green);">
             <img id="view_main_logo" style="display:none">
-            <div id="view_logo_placeholder" class="text-center text-white small fw-bold"><i class="fas fa-camera fs-4 mb-1"></i><br>Logo</div>
+            <div id="view_logo_placeholder" class="text-center small fw-bold" style="color: var(--brand-gold) !important;"><i class="fas fa-camera fs-4 mb-1"></i><br>Logo</div>
         </div>
         <div>
-            <h1 class="brand-title">LETAFEL KOZMETİK ÜRÜNLER PAZARLAMA VE TİCARET LİMİTED ŞİRKETİ</h1>
-            <div class="fw-bold" style="font-size: 0.85rem; color: #224a07;">LETAFEL COSMETICS</div>
-            <div class="small fw-bold" style="color: var(--accent-dark);"><i class="fas fa-map-marker-alt"></i> KARTEPE</div>
+            <h1 class="brand-title" style="color: var(--brand-green); font-family: 'Cormorant Garamond', serif; font-weight: 700; letter-spacing: 1.5px; font-size: 1.8rem; text-transform: uppercase;">LETAFEL KOZMETİK ÜRÜNLER PAZARLAMA VE TİCARET L.Ş.</h1>
+            <div class="fw-bold mt-1" style="font-size: 1.15rem; color: var(--brand-gold); font-family: 'Montserrat', sans-serif; letter-spacing: 4px;">LETAFEL COSMETICS</div>
+            <div class="small fw-bold mt-2" style="color: #888; font-family: 'Montserrat', sans-serif; letter-spacing: 2px;"><i class="fas fa-map-marker-alt me-1" style="color: var(--brand-green);"></i>KARTEPE</div>
         </div>
     </div>
 </div>
 
-<nav class="navbar navbar-expand-lg navbar-custom sticky-top">
+<nav class="navbar navbar-expand-lg sticky-top" style="background-color: var(--brand-green); border-bottom: 3px solid var(--brand-gold); box-shadow: 0 4px 15px rgba(0,0,0,0.15); padding: 8px 0; margin-bottom: 30px;">
     <div class="container">
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav mx-auto gap-3">
-                <li class="nav-item"><a class="nav-link text-success" onclick="switchModule('mod-ozet', this); renderDashboard();"><i class="fas fa-chart-pie me-1"></i> Finans & Özet</a></li>
-                <li class="nav-item"><a class="nav-link active" onclick="switchModule('mod-stok', this)"><i class="fas fa-boxes me-1"></i> Stok (Envanter) Listesi</a></li>
-                <li class="nav-item"><a class="nav-link" onclick="switchModule('mod-islem', this)"><i class="fas fa-exchange-alt me-1"></i> İşlemler (Alım / Satım)</a></li>
-                <li class="nav-item"><a class="nav-link text-danger" onclick="switchModule('mod-tukenler', this)"><i class="fas fa-exclamation-circle me-1"></i> Tükenenler</a></li>
-                <li class="nav-item"><a class="nav-link text-warning" onclick="switchModule('mod-sepet', this)"><i class="fas fa-shopping-basket me-1"></i> Paket / Çapraz Satış</a></li>
-                <li class="nav-item"><a class="nav-link" onclick="switchModule('mod-katalog', this)" style="border: 1px solid var(--brand-gold);"><i class="fas fa-book-open me-1"></i> Katalog Sistemi</a></li>
-                <li class="nav-item"><a class="nav-link text-secondary" onclick="switchModule('mod-ayarlar', this)"><i class="fas fa-cogs me-1"></i> Ayarlar</a></li>
-            <li class="nav-item"><a class="nav-link text-muted" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i> Çıkış</a></li>
+            <ul class="navbar-nav mx-auto gap-2">
+                <li class="nav-item"><a class="nav-link custom-nav-link" onclick="switchModule('mod-ozet', this); renderDashboard();"><i class="fas fa-chart-pie me-1"></i> Finans & Özet</a></li>
+                <li class="nav-item"><a class="nav-link custom-nav-link active" onclick="switchModule('mod-stok', this)"><i class="fas fa-boxes me-1"></i> Stok (Envanter) Listesi</a></li>
+                <li class="nav-item"><a class="nav-link custom-nav-link" onclick="switchModule('mod-islem', this)"><i class="fas fa-exchange-alt me-1"></i> İşlemler</a></li>
+                <li class="nav-item"><a class="nav-link custom-nav-link" onclick="switchModule('mod-tukenler', this)"><i class="fas fa-exclamation-circle me-1" style="color: #ffbaba;"></i> Tükenenler</a></li>
+                <li class="nav-item"><a class="nav-link custom-nav-link" onclick="switchModule('mod-sepet', this)"><i class="fas fa-shopping-basket me-1"></i> Çapraz Satış</a></li>
+                <li class="nav-item"><a class="nav-link custom-nav-link" onclick="switchModule('mod-katalog', this)" style="border: 1px dashed rgba(197, 160, 89, 0.4);"><i class="fas fa-book-open me-1"></i> Katalog Sistemi</a></li>
+                <li class="nav-item"><a class="nav-link custom-nav-link" onclick="switchModule('mod-ayarlar', this)"><i class="fas fa-cogs me-1"></i> Ayarlar</a></li>
+                <li class="nav-item ms-lg-4"><a class="nav-link custom-nav-link" onclick="handleLogout()" style="color: #ff9e9e !important;"><i class="fas fa-sign-out-alt me-1"></i> Çıkış</a></li>
             </ul>
         </div>
     </div>
@@ -3486,6 +3514,12 @@ function syncVariantTotal() {
 
         var monthlyData = {};
         var totalRevenue = 0; var totalProfit = 0;
+        
+        // --- YENİ: AY LİSTESİNİN BOŞ KALMAMASI İÇİN GEÇERLİ AYI ZORLA EKLİYORUZ ---
+        var currentDateObj = new Date();
+        var currentMonthKey = currentDateObj.getFullYear() + "-" + String(currentDateObj.getMonth() + 1).padStart(2, '0');
+        monthlyData[currentMonthKey] = { itemsSold: 0, revGross: 0, costGross: 0, kdvOut: 0, kdvIn: 0 };
+        // --------------------------------------------------------------------------
 
         // KDV'li ve KDV'siz Ciro / Maliyet Hesaplamaları
         txList.forEach(tx => {
