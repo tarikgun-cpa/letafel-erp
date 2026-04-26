@@ -573,7 +573,9 @@
                 <button class="admin-btn btn-blue" onclick="openCloudCatalogs()">☁️ Buluttan Yükle</button>
                 <button class="admin-btn btn-blue" onclick="saveCatalogToCloud()">☁️ Buluta Kaydet</button>
                 
-                <button class="admin-btn btn-gold" id="png-btn" onclick="exportToPNG()">📸 FOTOĞRAF OLARAK İNDİR</button>
+                <button class="admin-btn btn-gold" id="png-btn" onclick="exportToPNG()">📸 KATALOG İNDİR</button>
+                <button class="admin-btn" id="marketplace-btn" style="background-color: #f27a1a; color: white; border: 1px solid #d16915;" onclick="exportForMarketplace()">🛒 PAZARYERİ GÖRSELİ</button>
+                
                 <button class="admin-btn btn-red" onclick="clearAll()">🗑️ Temizle</button>
             </div>
         </div>
@@ -2859,6 +2861,81 @@ if(p.variants && p.variants.length > 0) {
             html2canvas(wrapper, { scale: 2, useCORS: true, backgroundColor: "#ffffff", logging: false, onclone: function(clonedDoc) { var w = clonedDoc.getElementById('page-content'); if(w) { w.style.margin = "0"; w.style.boxShadow = "none"; } var l = clonedDoc.querySelector('.cat-logo-box'); if (l) l.style.border = "none"; var hiddenElements = clonedDoc.querySelectorAll('.ui-hide-on-capture, .cat-delete-product-btn, .cat-badge-selector'); for(var i=0; i<hiddenElements.length; i++) hiddenElements[i].style.display = 'none'; } }).then(function(canvas) { document.body.classList.remove('js-capturing'); btn.innerHTML = originalText; btn.disabled = false; var link = document.createElement('a'); link.download = 'Letafel_Katalog_' + new Date().toISOString().slice(0,10) + '.png'; link.href = canvas.toDataURL('image/png'); link.click(); }).catch(function(err) { document.body.classList.remove('js-capturing'); btn.innerHTML = originalText; btn.disabled = false; alert("Fotoğraf hatası."); });
         } catch(e) { alert("Kütüphane Hatası"); }
     }
+
+    // --- YENİ: PAZARYERİ (TRENDYOL/HEPSİBURADA) İÇİN TEMİZ GÖRSEL OLUŞTURUCU ---
+    window.exportForMarketplace = function() {
+        var btn = document.getElementById('marketplace-btn');
+        var originalText = btn.innerHTML;
+        btn.innerHTML = "⏳ Hazırlanıyor...";
+        btn.disabled = true;
+
+        // 1. Katalogdaki tüm ürün resimlerini bul
+        var images = document.querySelectorAll('#grid-area .product-card .img-box img');
+        if (images.length === 0) {
+            alert("Katalogda dışa aktarılacak ürün görseli bulunamadı!");
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            return;
+        }
+
+        // 2. Trendyol formatına uygun (1200x1200px Kare, Beyaz Arka Plan) gizli bir tuval oluştur
+        var tempContainer = document.createElement('div');
+        tempContainer.style.position = 'fixed';
+        tempContainer.style.top = '-9999px'; // Ekranda görünmemesi için dışarı atıyoruz
+        tempContainer.style.left = '0';
+        tempContainer.style.width = '1200px'; 
+        tempContainer.style.height = '1200px';
+        tempContainer.style.backgroundColor = '#ffffff';
+        tempContainer.style.display = 'flex';
+        tempContainer.style.flexWrap = 'wrap';
+        tempContainer.style.alignItems = 'center';
+        tempContainer.style.justifyContent = 'center';
+        tempContainer.style.padding = '40px';
+        tempContainer.style.boxSizing = 'border-box';
+        tempContainer.style.gap = '30px';
+
+        document.body.appendChild(tempContainer);
+
+        // Resimlerin adetine göre büyüklüklerini ayarla (kutuya tam sığmaları için)
+        var imgCount = images.length;
+        var imgWidth = "40%"; // Varsayılan (2-4 ürün için)
+        if (imgCount === 1) imgWidth = "75%";
+        else if (imgCount > 4) imgWidth = "28%";
+
+        // 3. Resimleri yazısız ve temiz bir şekilde bu yeni tuvale kopyala
+        images.forEach(function(img) {
+            var newImg = document.createElement('img');
+            newImg.src = img.src;
+            newImg.style.width = imgWidth;
+            newImg.style.maxHeight = imgWidth;
+            newImg.style.objectFit = 'contain';
+            tempContainer.appendChild(newImg);
+        });
+
+        // 4. Tuvali fotoğrafa dönüştür ve indir
+        html2canvas(tempContainer, { 
+            scale: 1, // 1200px zaten yeterince büyük
+            useCORS: true, 
+            backgroundColor: "#ffffff", 
+            logging: false 
+        }).then(function(canvas) { 
+            btn.innerHTML = originalText; 
+            btn.disabled = false; 
+            
+            var link = document.createElement('a'); 
+            link.download = 'Letafel_Pazaryeri_Seti_' + new Date().toISOString().slice(0,10) + '.png'; 
+            link.href = canvas.toDataURL('image/png'); 
+            link.click(); 
+            
+            // Çöpü temizle
+            document.body.removeChild(tempContainer);
+        }).catch(function(err) { 
+            btn.innerHTML = originalText; 
+            btn.disabled = false; 
+            alert("Pazaryeri görseli oluşturulurken hata oluştu. Lütfen tekrar deneyin."); 
+            document.body.removeChild(tempContainer);
+        });
+    };
 
     // --- 3. KATALOG YÖNETİMİ VE SİSTEM GİRİŞ FONKSİYONLARI ---
 
