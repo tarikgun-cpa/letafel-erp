@@ -873,6 +873,32 @@
     </div>
   </div>
 </div>
+<div class="modal fade" id="catalogAddProductModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header text-white" style="background-color: var(--brand-green);">
+        <h5 class="modal-title fw-bold"><i class="fas fa-box-open me-2"></i> Stoktan Kataloğa Ekle</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body bg-light">
+          <p class="small text-muted">Aşağıdan ürününüzü ve katalogda hangi fiyatın (E-ticaret veya Mağaza) görünmesini istediğinizi seçin.</p>
+          
+          <label class="small fw-bold text-secondary mb-1">Ürün Seçimi</label>
+          <select id="cat_stock_product" class="form-select mb-3 fw-bold"></select>
+          
+          <label class="small fw-bold text-secondary mb-1">Katalog Fiyat Tipi</label>
+          <select id="cat_price_type" class="form-select mb-3 border-success text-success fw-bold">
+              <option value="ECOM">💻 E-Ticaret Fiyatını Kullan</option>
+              <option value="STORE">🏬 Mağaza Fiyatını Kullan</option>
+          </select>
+      </div>
+      <div class="modal-footer bg-white border-top">
+        <button type="button" class="btn btn-light fw-bold" data-bs-dismiss="modal">İptal</button>
+        <button type="button" class="btn btn-success fw-bold px-4" style="background-color: var(--brand-green); border-color: var(--brand-green);" onclick="confirmAddProductToCatalog()">Kataloğa Ekle</button>
+      </div>
+    </div>
+  </div>
+</div>
 <script>
     // Sistem Değişkenleri
     var DB_NAME = 'letafel_erp_v30';
@@ -2868,8 +2894,8 @@ function addNewCategory() {
     var section = document.createElement('div'); 
     section.className = 'category-wrapper';
     
-    // Eski tasarımınıza (attığınız görsele) uygun olması için varsayılan olarak 4'lü başlatıyoruz
-    section.innerHTML = '<div class="category-header"><div class="category-title" contenteditable="true">KOLEKSİYON BAŞLIĞI</div><div class="ui-hide-on-capture" data-html2canvas-ignore="true"><select class="control-btn layout-selector" onchange="changeLayout(this)" title="Sütun Düzeni"><option value="grid-1">1\'li</option><option value="grid-2">2\'li</option><option value="grid-3">3\'lü</option><option value="grid-4" selected>4\'lü</option></select><button class="control-btn" onclick="addProduct(this)">+ Ürün</button><button class="control-btn" style="color:red; border-color:red;" onclick="this.closest(\'.category-wrapper\').remove()">Sil</button></div></div><div class="category-products grid-4">' + createProduct() + createProduct() + createProduct() + createProduct() + '</div>';
+    // Gruplara "+ Stoktan Ürün" butonu eklendi.
+    section.innerHTML = '<div class="category-header"><div class="category-title" contenteditable="true">KOLEKSİYON BAŞLIĞI</div><div class="ui-hide-on-capture" data-html2canvas-ignore="true"><select class="control-btn layout-selector" onchange="changeLayout(this)" title="Sütun Düzeni"><option value="grid-1">1\'li</option><option value="grid-2">2\'li</option><option value="grid-3">3\'lü</option><option value="grid-4" selected>4\'lü</option></select><button class="control-btn" style="background:#eaf8ea; border-color:#4caf50; color:#2e7d32;" onclick="openCatalogProductModal(this)">+ Stoktan Ürün</button><button class="control-btn" onclick="addProduct(this)">+ Boş Ürün</button><button class="control-btn" style="color:red; border-color:red;" onclick="this.closest(\'.category-wrapper\').remove()">Sil</button></div></div><div class="category-products grid-4"></div>';
     
     document.getElementById('grid-area').appendChild(section);
 }
@@ -3073,6 +3099,133 @@ function syncVariantTotal() {
         }
     }
 
+// --- 1. STOKTAN KATALOĞA ÜRÜN AKTARMA FONKSİYONLARI ---
+    var targetCatalogCategory = null;
+
+    window.openCatalogProductModal = function(btn) {
+        // Hangi kategoriye (gruba) ekleneceğini hafızada tut
+        targetCatalogCategory = btn.closest('.category-wrapper').querySelector('.category-products');
+        
+        // Ürün listesini (sadece stokta olanları veya hepsini) dropdown'a doldur
+        var selectObj = document.getElementById('cat_stock_product');
+        selectObj.innerHTML = '<option value="">-- Listeden Ürün Seç --</option>';
+        productList.forEach(p => {
+            selectObj.innerHTML += `<option value="${p.id}">${p.name} (Alış: ${p.buy}₺)</option>`;
+        });
+        
+        var modal = new bootstrap.Modal(document.getElementById('catalogAddProductModal'));
+        modal.show();
+    };
+
+    window.confirmAddProductToCatalog = function() {
+        var pid = document.getElementById('cat_stock_product').value;
+        var priceType = document.getElementById('cat_price_type').value;
+        
+        if(!pid) { alert("Lütfen bir ürün seçin!"); return; }
+        
+        var p = productList.find(x => x.id == pid);
+        if(p) {
+            // Fiyat Tipini Belirle
+            var price = priceType === 'ECOM' ? p.sellEcom : p.sellStore;
+            var priceText = (parseFloat(price) || parseFloat(p.buy) || 0).toFixed(2) + " TL";
+            
+            // Görseli Belirle
+            var imgUrl = (p.img && (p.img.startsWith('http') || p.img.startsWith('data:image'))) ? p.img : PLACEHOLDER_IMG;
+            
+            // Kategoriyi Açıklama Kısmına Koy
+            var descText = p.cat || "Letafel Kozmetik";
+            
+            // Ürün kartını oluştur ve ilgili kategoriye ekle
+            var newProductHtml = createProduct(p.name, descText, priceText, imgUrl);
+            targetCatalogCategory.insertAdjacentHTML('beforeend', newProductHtml);
+            
+            bootstrap.Modal.getInstance(document.getElementById('catalogAddProductModal')).hide();
+        }
+    };
+
+    // --- 2. BULUTTAKİ KATALOGLARI YÖNETME (SİLME / GÜNCELLEME) ---
+    // Mevcut openCloudCatalogs fonksiyonunuzu BULUP BUNUNLA DEĞİŞTİRİN:
+    window.openCloudCatalogs = async function() {
+        var modal = new bootstrap.Modal(document.getElementById('catalogModal'));
+        modal.show();
+        var listDiv = document.getElementById('cloudCatalogList');
+        listDiv.innerHTML = '<div class="p-4 text-center text-muted"><i class="fas fa-spinner fa-spin fs-4 mb-2"></i><br>Kataloglar Yükleniyor...</div>';
+        
+        try {
+            var snap = await window.fbGetDocs(window.fbCollection(window.db, "catalogs"));
+            listDiv.innerHTML = '';
+            if(snap.empty) {
+                listDiv.innerHTML = '<div class="p-4 text-center text-danger fw-bold">Kayıtlı katalog bulunamadı.</div>';
+                return;
+            }
+            
+            snap.forEach(docSnap => {
+                var c = docSnap.data();
+                var docId = docSnap.id; // Firebase ID
+                
+                var li = document.createElement('div');
+                li.className = 'list-group-item d-flex justify-content-between align-items-center p-3';
+                li.innerHTML = `
+                    <div style="max-width: 60%;">
+                        <div class="fw-bold text-primary text-truncate"><i class="fas fa-book me-2"></i><span id="catname-${docId}">${c.name}</span></div>
+                        <div class="small text-muted">${c.date}</div>
+                    </div>
+                    <div class="btn-group shadow-sm">
+                        <button class="btn btn-sm btn-success fw-bold" onclick="downloadCloudCatalog('${c.fileUrl}', this)" title="Kataloğu Ekrana Yükle"><i class="fas fa-download"></i> Aç</button>
+                        <button class="btn btn-sm btn-warning" onclick="renameCloudCatalog('${docId}', '${c.name}')" title="İsmini Değiştir"><i class="fas fa-edit"></i></button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteCloudCatalog('${docId}')" title="Kataloğu Sil"><i class="fas fa-trash"></i></button>
+                    </div>
+                `;
+                listDiv.appendChild(li);
+            });
+        } catch(e) {
+            listDiv.innerHTML = '<div class="p-4 text-center text-danger">Bağlantı Hatası: ' + e.message + '</div>';
+        }
+    };
+
+    // Buluttan Kataloğu Açma İşlemi
+    window.downloadCloudCatalog = async function(fileUrl, btn) {
+        try {
+            var originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            let response = await fetch(fileUrl);
+            let data = await response.json();
+            document.getElementById('main-title').innerText = data.title || "";
+            document.getElementById('company-logo').src = data.logo || "";
+            document.getElementById('grid-area').innerHTML = data.content || "";
+            var f = document.querySelector('.cat-footer div');
+            if(f) f.innerText = data.footer || "";
+            
+            bootstrap.Modal.getInstance(document.getElementById('catalogModal')).hide();
+            alert("Katalog başarıyla ekrana yüklendi.");
+            btn.innerHTML = originalHtml;
+        } catch(e) {
+            alert("İndirme hatası: " + e.message);
+            btn.innerHTML = originalHtml;
+        }
+    };
+
+    // Buluttaki Kataloğun Adını Değiştirme
+    window.renameCloudCatalog = async function(docId, oldName) {
+        var newName = prompt("Kataloğun yeni adını girin:", oldName);
+        if(newName && newName.trim() !== "" && newName !== oldName) {
+            try {
+                await window.fbUpdateDoc(window.fbDoc(window.db, "catalogs", docId), { name: newName });
+                document.getElementById('catname-' + docId).innerText = newName;
+            } catch(e) { alert("Hata: " + e.message); }
+        }
+    };
+
+    // Buluttaki Kataloğu Silme
+    window.deleteCloudCatalog = async function(docId) {
+        if(confirm("Bu kataloğu buluttan tamamen silmek istediğinize emin misiniz?")) {
+            try {
+                await window.fbDeleteDoc(window.fbDoc(window.db, "catalogs", docId));
+                window.openCloudCatalogs(); // Listeyi yenile
+            } catch(e) { alert("Hata: " + e.message); }
+        }
+    };
+    
 </script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
