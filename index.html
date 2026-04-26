@@ -1765,6 +1765,7 @@ if(p.variants && p.variants.length > 0) {
                     '<td class="text-danger fw-bold">' + (parseFloat(b.sellEcom)||0).toFixed(2) + ' ₺</td>' +
                     '<td class="text-success fw-bold">' + (parseFloat(b.sellStore)||0).toFixed(2) + ' ₺</td>' +
                     '<td class="text-end">' +
+                        '<button class="btn btn-sm btn-outline-warning fw-bold me-1 text-dark" onclick="sendBasketToCatalog(' + b.id + ')" title="E-Ticaret Görseli Hazırla"><i class="fas fa-images"></i> Kataloğa Aktar</button>' +
                         '<button class="btn btn-sm btn-outline-primary me-1" onclick="loadSavedBasket(' + b.id + ')" title="Bu Paketi Aşağıda Düzenle"><i class="fas fa-edit"></i> Düzenle</button>' +
                         '<button class="btn btn-sm btn-success fw-bold me-1 text-white shadow-sm" onclick="openSellBasketModal(' + b.id + ')"><i class="fas fa-shopping-cart"></i> Satış Yap</button>' +
                         '<button class="btn btn-sm btn-outline-danger" onclick="deleteSavedBasket(' + b.id + ')" title="Paketi Sil"><i class="fas fa-trash"></i></button>' +
@@ -1921,6 +1922,51 @@ if(p.variants && p.variants.length > 0) {
             resetActiveBasket();
         }
     }
+
+    // Sepet/Paket bilgisini Katalog Modülüne Aktarır
+    window.sendBasketToCatalog = function(bid) {
+        var b = savedBaskets.find(x => x.id == bid);
+        if(!b) return;
+
+        // 1. Katalog Modülüne Geçiş Yap
+        var links = document.querySelectorAll('.nav-link');
+        var catLink = Array.from(links).find(l => l.innerText.includes('Katalog'));
+        if(catLink) switchModule('mod-katalog', catLink);
+
+        // 2. Paket için özel katalog kategorisi oluştur
+        var section = document.createElement('div'); 
+        section.className = 'category-wrapper';
+        
+        // Ürün sayısına göre otomatik ızgara seçimi
+        var gridClass = 'grid-2';
+        if (b.items.length === 1) gridClass = 'grid-1';
+        else if (b.items.length === 3) gridClass = 'grid-3';
+        else if (b.items.length >= 4) gridClass = 'grid-4';
+
+        var html = '<div class="category-header"><div class="category-title" contenteditable="true">' + b.name + ' (ÖZEL PAKET)</div><div class="ui-hide-on-capture" data-html2canvas-ignore="true"><select class="control-btn layout-selector" onchange="changeLayout(this)" title="Sütun Düzeni"><option value="grid-1" '+(gridClass=='grid-1'?'selected':'')+'>1\'li</option><option value="grid-2" '+(gridClass=='grid-2'?'selected':'')+'>2\'li</option><option value="grid-3" '+(gridClass=='grid-3'?'selected':'')+'>3\'lü</option><option value="grid-4" '+(gridClass=='grid-4'?'selected':'')+'>4\'lü</option></select><button class="control-btn" onclick="addProduct(this)">+ Ürün</button><button class="control-btn" style="color:red; border-color:red;" onclick="this.closest(\'.category-wrapper\').remove()">Sil</button></div></div><div class="category-products ' + gridClass + '">';
+
+        // 3. Paketteki ürünleri görselleri ve fiyatlarıyla birlikte yerleştir
+        b.items.forEach(function(item) {
+            var p = productList.find(x => x.id == item.pid);
+            if(p) {
+                var vText = item.variant ? " (" + item.variant + ")" : "";
+                var priceText = (parseFloat(p.sellEcom) || parseFloat(p.buy) || 0).toFixed(2) + " ₺";
+                var imgUrl = (p.img && p.img.startsWith('http')) ? p.img : (p.img && p.img.startsWith('data:image')) ? p.img : PLACEHOLDER_IMG;
+                var descText = "Paket İçi Adet: " + item.qty;
+                
+                html += createProduct(p.name + vText, descText, priceText, imgUrl);
+            }
+        });
+
+        html += '</div>';
+        section.innerHTML = html;
+        document.getElementById('grid-area').appendChild(section);
+
+        // Ekranı yeni eklenen alana kaydır
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        
+        alert("Paket Kataloğa Aktarıldı!\nÜzerinde metin/fiyat düzenlemeleri yapabilir ve sağ üstteki 'FOTOĞRAF OLARAK İNDİR' butonuyla E-Ticaret için görselinizi hazırlayabilirsiniz.");
+    };
 
     // ==========================================
     // YENİ: YAPAY ZEKA PAKET DANIŞMANI
@@ -2685,22 +2731,45 @@ if(p.variants && p.variants.length > 0) {
         } catch (error) { alert("Hata: " + error.message); }
     }
 
-    // --- 3. KATALOG YÖNETİMİ (KORUNMUŞTUR) ---
-    function createProduct(name, desc, price) {
-        name = name || "LÜKS ÜRÜN ADI"; desc = desc || "Ürün kısa detayı veya özellikleri."; price = price || "0.00 TL";
-        var id = 'img-' + Math.random().toString(36).substr(2, 9);
-        return '<div class="cat-product-card"><button class="cat-delete-product-btn" data-html2canvas-ignore="true" onclick="this.parentElement.remove()">X</button><div class="cat-img-box" onclick="document.getElementById(\'file-' + id + '\').click()"><div class="cat-badge-display" data-type=""></div><img id="' + id + '" src="https://via.placeholder.com/400x500?text=Gorsel+Yukle"><input type="file" id="file-' + id + '" style="display:none" accept="image/*" onchange="loadCatImg(event, \'' + id + '\')"></div><div class="cat-product-name" contenteditable="true">' + name + '</div><div class="cat-product-desc" contenteditable="true">' + desc + '</div><div class="cat-price-tag" contenteditable="true">' + price + '</div><select class="cat-badge-selector" data-html2canvas-ignore="true" onchange="changeBadge(this)"><option value="">-- Rozet --</option><option value="YENİ">🌟 YENİ</option><option value="SINIRLI STOK">⏳ SINIRLI</option><option value="İNDİRİM">🔥 İNDİRİM</option><option value="FIRSAT">💎 FIRSAT</option></select></div>';
-    }
+    // Katalog ürün kartı oluşturucu (CSS sınıfları ile tam uyumlu hale getirildi ve dinamikleştirildi)
+function createProduct(name, desc, price, imgUrl) {
+    name = name || "LÜKS ÜRÜN ADI"; 
+    desc = desc || "Ürün kısa detayı veya özellikleri."; 
+    price = price || "0.00 TL";
+    var displayImg = imgUrl || "https://via.placeholder.com/400x500?text=Gorsel+Yukle";
+    var id = 'img-' + Math.random().toString(36).substr(2, 9);
+    
+    return '<div class="product-card"><button class="delete-product-btn" data-html2canvas-ignore="true" onclick="this.parentElement.remove()">X</button><div class="img-box" onclick="document.getElementById(\'file-' + id + '\').click()"><div class="badge-display" data-type=""></div><img id="' + id + '" src="' + displayImg + '"><input type="file" id="file-' + id + '" style="display:none" accept="image/*" onchange="loadCatImg(event, \'' + id + '\')"></div><div class="product-name" contenteditable="true">' + name + '</div><div class="product-desc" contenteditable="true">' + desc + '</div><div class="price-tag" contenteditable="true">' + price + '</div><select class="badge-selector" data-html2canvas-ignore="true" onchange="changeBadge(this)"><option value="">-- Rozet --</option><option value="YENİ">🌟 YENİ</option><option value="SINIRLI STOK">⏳ SINIRLI</option><option value="İNDİRİM">🔥 İNDİRİM</option><option value="FIRSAT">💎 FIRSAT</option></select></div>';
+}
 
-    function addNewCategory() {
-        var section = document.createElement('div'); section.className = 'cat-category-wrapper';
-        section.innerHTML = '<div class="cat-category-header"><div class="cat-category-title" contenteditable="true">KOLEKSİYON BAŞLIĞI</div><div class="ui-hide-on-capture" data-html2canvas-ignore="true"><select class="cat-control-btn layout-selector" onchange="changeLayout(this)" title="Sütun Düzeni"><option value="cat-grid-1">1\'li</option><option value="cat-grid-2" selected>2\'li</option><option value="cat-grid-3">3\'lü</option><option value="cat-grid-4">4\'lü</option></select><button class="cat-control-btn" onclick="addProduct(this)">+ Ürün</button><button class="cat-control-btn" style="color:red; border-color:red;" onclick="this.closest(\'.cat-category-wrapper\').remove()">Sil</button></div></div><div class="cat-category-products cat-grid-2">' + createProduct() + createProduct() + '</div>';
-        document.getElementById('grid-area').appendChild(section);
-    }
+function addNewCategory() {
+    var section = document.createElement('div'); 
+    section.className = 'category-wrapper';
+    section.innerHTML = '<div class="category-header"><div class="category-title" contenteditable="true">KOLEKSİYON BAŞLIĞI</div><div class="ui-hide-on-capture" data-html2canvas-ignore="true"><select class="control-btn layout-selector" onchange="changeLayout(this)" title="Sütun Düzeni"><option value="grid-1">1\'li</option><option value="grid-2" selected>2\'li</option><option value="grid-3">3\'lü</option><option value="grid-4">4\'lü</option></select><button class="control-btn" onclick="addProduct(this)">+ Ürün</button><button class="control-btn" style="color:red; border-color:red;" onclick="this.closest(\'.category-wrapper\').remove()">Sil</button></div></div><div class="category-products grid-2">' + createProduct() + createProduct() + '</div>';
+    document.getElementById('grid-area').appendChild(section);
+}
 
-    function addProduct(btn) { btn.closest('.cat-category-wrapper').querySelector('.cat-category-products').insertAdjacentHTML('beforeend', createProduct()); }
-    function changeLayout(sel) { var c = sel.closest('.cat-category-wrapper').querySelector('.cat-category-products'); c.className = 'cat-category-products ' + sel.value; }
-    function changeBadge(sel) { var b = sel.closest('.cat-product-card').querySelector('.cat-badge-display'); var v = sel.value; if(v.includes("YENİ")) v="YENİ"; else if(v.includes("İNDİRİM")) v="İNDİRİM"; else if(v.includes("STOK")) v="SINIRLI STOK"; else if(v.includes("FIRSAT")) v="FIRSAT"; b.innerText=v; b.setAttribute('data-type',v); b.style.display=v?'block':'none'; }
+function addProduct(btn) { 
+    btn.closest('.category-wrapper').querySelector('.category-products').insertAdjacentHTML('beforeend', createProduct()); 
+}
+
+function changeLayout(sel) { 
+    var c = sel.closest('.category-wrapper').querySelector('.category-products'); 
+    c.className = 'category-products ' + sel.value; 
+}
+
+function changeBadge(sel) { 
+    var b = sel.closest('.product-card').querySelector('.badge-display'); 
+    var v = sel.value; 
+    if(v.includes("YENİ")) v="YENİ"; 
+    else if(v.includes("İNDİRİM")) v="İNDİRİM"; 
+    else if(v.includes("STOK")) v="SINIRLI STOK"; 
+    else if(v.includes("FIRSAT")) v="FIRSAT"; 
+    
+    b.innerText = v; 
+    b.setAttribute('data-type', v); 
+    b.style.display = v ? 'block' : 'none'; 
+}
     function loadCatImg(e, id) { var r=new FileReader(); r.onload=x=>document.getElementById(id).src=x.target.result; if(e.target.files[0]) r.readAsDataURL(e.target.files[0]); }
     function clearAll() { if(confirm("Tüm kataloğu sıfırlamak istediğinize emin misiniz?")) document.getElementById('grid-area').innerHTML = ""; }
     
