@@ -1882,16 +1882,22 @@ if(p.variants && p.variants.length > 0) {
             var vatInputStore = vatInputProducts;
 
             var netEcom = 0, netStore = 0;
+            var marginEcomPct = 0, marginStorePct = 0; // YÜZDE (KÂR ORANI) DEĞİŞKENLERİ
+
             if(sellEcom > 0 && b.items.length > 0) {
                 var commAmount = sellEcom * commRate;
                 var vatOutEcom = sellEcom * innerTax;
                 var vatPayEcom = Math.max(0, vatOutEcom - vatInputEcom);
                 netEcom = sellEcom - commAmount - vatPayEcom - currentBasketEcomCost;
+                // E-Ticaret Kâr Yüzdesi Hesaplama
+                if (currentBasketEcomCost > 0) marginEcomPct = (netEcom / currentBasketEcomCost) * 100; 
             }
             if(sellStore > 0 && b.items.length > 0) {
                 var vatOutStore = sellStore * innerTax;
                 var vatPayStore = Math.max(0, vatOutStore - vatInputStore);
                 netStore = sellStore - vatPayStore - totalBasketBuyCost;
+                // Mağaza Kâr Yüzdesi Hesaplama
+                if (totalBasketBuyCost > 0) marginStorePct = (netStore / totalBasketBuyCost) * 100; 
             }
 
             // KUTU (LOJİSTİK) GÖRSELLEŞTİRMESİ
@@ -1911,11 +1917,13 @@ if(p.variants && p.variants.length > 0) {
                     '<td class="text-center">' + boxHtml + '</td>' +
                     '<td class="text-end">' +
                         '<div class="text-danger fw-bold fs-6">' + sellEcom.toFixed(2) + ' ₺</div>' +
-                        '<div class="small fw-bold ' + (netEcom >= 0 ? 'text-success' : 'text-danger') + '">Kâr: ' + netEcom.toFixed(2) + ' ₺</div>' +
+                        '<div class="small fw-bold ' + (netEcom >= 0 ? 'text-success' : 'text-danger') + '">Kâr: ' + netEcom.toFixed(2) + ' ₺ ' + 
+                        '<span class="badge ' + (netEcom >= 0 ? 'bg-success' : 'bg-danger') + ' ms-1 shadow-sm" style="font-size: 0.65rem;">%' + Math.round(marginEcomPct) + '</span></div>' +
                     '</td>' +
                     '<td class="text-end">' +
                         '<div class="text-success fw-bold fs-6">' + sellStore.toFixed(2) + ' ₺</div>' +
-                        '<div class="small fw-bold ' + (netStore >= 0 ? 'text-success' : 'text-danger') + '">Kâr: ' + netStore.toFixed(2) + ' ₺</div>' +
+                        '<div class="small fw-bold ' + (netStore >= 0 ? 'text-success' : 'text-danger') + '">Kâr: ' + netStore.toFixed(2) + ' ₺ ' +
+                        '<span class="badge ' + (netStore >= 0 ? 'bg-success' : 'bg-danger') + ' ms-1 shadow-sm" style="font-size: 0.65rem;">%' + Math.round(marginStorePct) + '</span></div>' +
                     '</td>' +
                     '<td class="text-end pe-4">' +
                         '<div class="btn-group shadow-sm bg-white rounded-3">' +
