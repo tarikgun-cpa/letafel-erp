@@ -1851,7 +1851,6 @@ if(p.variants && p.variants.length > 0) {
         savedBaskets.forEach(function(b) {
             var itemsText = b.items.length + " Çeşit Ürün";
             
-            // LİSTE ÜZERİNDE ANLIK KÂR HESAPLAMASI
             var totalBasketBuyCost = 0;
             b.items.forEach(function(item) {
                 var p = productList.find(x => x.id == item.pid);
@@ -1882,25 +1881,33 @@ if(p.variants && p.variants.length > 0) {
             var vatInputStore = vatInputProducts;
 
             var netEcom = 0, netStore = 0;
-            var marginEcomPct = 0, marginStorePct = 0; // YÜZDE (KÂR ORANI) DEĞİŞKENLERİ
+            var marginEcomPct = 0, marginStorePct = 0; 
 
+            // E-TİCARET KÂR VE YÜZDE (MARJ) HESABI
             if(sellEcom > 0 && b.items.length > 0) {
                 var commAmount = sellEcom * commRate;
                 var vatOutEcom = sellEcom * innerTax;
                 var vatPayEcom = Math.max(0, vatOutEcom - vatInputEcom);
+                
+                // Kâr Tutarı (Tüm giderler düşülür)
                 netEcom = sellEcom - commAmount - vatPayEcom - currentBasketEcomCost;
-                // E-Ticaret Kâr Yüzdesi Hesaplama
-                if (currentBasketEcomCost > 0) marginEcomPct = (netEcom / currentBasketEcomCost) * 100; 
+                
+                // YÜZDE HESABI DÜZELTİLDİ: (Net Kâr / Satış Fiyatı) * 100
+                marginEcomPct = (netEcom / sellEcom) * 100; 
             }
+            
+            // MAĞAZA KÂR VE YÜZDE (MARJ) HESABI
             if(sellStore > 0 && b.items.length > 0) {
                 var vatOutStore = sellStore * innerTax;
                 var vatPayStore = Math.max(0, vatOutStore - vatInputStore);
+                
+                // Kâr Tutarı
                 netStore = sellStore - vatPayStore - totalBasketBuyCost;
-                // Mağaza Kâr Yüzdesi Hesaplama
-                if (totalBasketBuyCost > 0) marginStorePct = (netStore / totalBasketBuyCost) * 100; 
+                
+                // YÜZDE HESABI DÜZELTİLDİ: (Net Kâr / Satış Fiyatı) * 100
+                marginStorePct = (netStore / sellStore) * 100; 
             }
 
-            // KUTU (LOJİSTİK) GÖRSELLEŞTİRMESİ
             var boxHtml = '<span class="badge bg-light text-muted border px-2 py-1 shadow-sm"><i class="fas fa-box"></i> Özel Paket</span>';
             if (b.box && b.box.toLowerCase().includes('büyük')) {
                 boxHtml = '<span class="badge bg-primary bg-opacity-10 text-primary border border-primary px-2 py-1 shadow-sm"><i class="fas fa-box-open me-1 fs-6"></i> Büyük Kutu</span>';
