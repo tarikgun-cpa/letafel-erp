@@ -432,76 +432,84 @@
     </div>
 
     <div id="mod-sepet" class="app-module">
-        
-        <div class="card-custom mb-4 shadow-sm border-0">
-            <div class="card-head py-2 px-4 d-flex align-items-center" style="background: var(--brand-green); color: var(--brand-gold); border-radius: 12px 12px 0 0;">
-                <span class="fs-6 fw-bold letter-spacing-1"><i class="fas fa-archive me-2"></i> KAYITLI PAKETLER / SEPETLER</span>
+        <div class="d-flex justify-content-between align-items-center mb-4 mt-2">
+            <h4 class="fw-bold mb-0" style="color: var(--brand-green); font-family: 'Cormorant Garamond', serif; letter-spacing: 1px;"><i class="fas fa-shopping-basket me-2" style="color: var(--brand-gold);"></i> Çapraz Satış & Paket Yönetimi</h4>
+            <div class="d-flex gap-3">
+                <button class="btn px-4 py-2 fw-bold shadow-sm" style="background-color: var(--brand-green); color: white; border-radius: 8px; font-family: 'Montserrat', sans-serif;" onclick="openNewBasketModal()">
+                    <i class="fas fa-plus me-2"></i> Yeni Paket Oluştur
+                </button>
+                <button class="btn px-4 py-2 fw-bold text-white shadow-sm" style="background: linear-gradient(135deg, var(--brand-gold), #dfb86e); border-radius: 8px; font-family: 'Montserrat', sans-serif;" onclick="openAIModal()">
+                    <i class="fas fa-magic me-2"></i> AI Paket Öner
+                </button>
+            </div>
+        </div>
+
+        <div class="card-custom shadow-sm border-0 h-100">
+            <div class="card-head py-3 px-4 d-flex align-items-center" style="background: var(--brand-green); color: var(--brand-gold); border-radius: 12px 12px 0 0;">
+                <span class="fs-5 fw-bold letter-spacing-1" style="font-family: 'Montserrat', sans-serif;"><i class="fas fa-archive me-2"></i> KAYITLI PAKETLER / SEPETLER</span>
             </div>
             <div class="card-body p-0">
-                <div class="table-responsive" style="max-height: 250px; overflow-y:auto;">
+                <div class="table-responsive" style="height: 65vh; overflow-y:auto;">
                     <table class="table table-hover align-middle mb-0">
                         <thead class="bg-light sticky-top" style="z-index: 1;">
                             <tr>
-                                <th class="ps-4 text-secondary small">Paket Adı</th>
-                                <th class="text-secondary small">İçerik</th>
-                                <th class="text-secondary small">E-Ticaret Fiyatı</th>
-                                <th class="text-secondary small">Mağaza Fiyatı</th>
-                                <th class="text-end pe-4 text-secondary small">İşlemler</th>
+                                <th class="ps-4 text-secondary py-3 small">Paket Adı</th>
+                                <th class="text-secondary py-3 small">İçerik Detayı</th>
+                                <th class="text-secondary py-3 small">E-Ticaret Fiyatı</th>
+                                <th class="text-secondary py-3 small">Mağaza Fiyatı</th>
+                                <th class="text-end pe-4 text-secondary py-3 small">İşlemler</th>
                             </tr>
                         </thead>
                         <tbody id="savedBasketsBody">
-                            <tr><td colspan="5" class="text-center text-muted py-4">Henüz kayıtlı paket yok. Aşağıdan oluşturup kaydedebilirsiniz.</td></tr>
+                            <tr><td colspan="5" class="text-center text-muted py-5">Henüz kayıtlı paket yok. Yukarıdaki butonlardan yeni paket oluşturabilirsiniz.</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
         </div>
+    </div>
 
-        <div class="row g-4">
-            <div class="col-xl-4 col-lg-5">
-                <div class="card-custom h-100 shadow-sm border-0 d-flex flex-column">
-                    <div class="bg-white text-dark border-bottom d-flex justify-content-between align-items-center pb-2 pt-3 px-4" style="border-radius: 12px 12px 0 0;">
-                        <span class="fw-bold fs-6"><i class="fas fa-box-open me-2" style="color: var(--brand-gold);"></i> Paket Düzenleyici</span>
-                        <div>
-                            <button class="btn btn-sm btn-light border fw-bold me-1 text-muted shadow-sm" onclick="resetActiveBasket()" title="Yeni Temiz Sepet"><i class="fas fa-file"></i></button>
-                            <button class="btn btn-sm text-white fw-bold shadow-sm" style="background: linear-gradient(135deg, var(--brand-gold), #dfb86e);" onclick="openAIModal()"><i class="fas fa-magic me-1"></i> AI Öner</button>
-                        </div>
-                    </div>
-                    
-                    <div class="card-body p-4 bg-light flex-grow-1" style="border-radius: 0 0 12px 12px;">
+    <div class="modal fade" id="basketEditorModal" tabindex="-1">
+      <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 15px;">
+          <div class="modal-header" style="background-color: var(--brand-green); color: var(--brand-gold); border-radius: 15px 15px 0 0; padding: 15px 25px;">
+            <h5 class="modal-title fw-bold" style="font-family: 'Cormorant Garamond', serif; font-size: 1.6rem; letter-spacing: 1px;"><i class="fas fa-box-open me-2"></i> Paket Düzenleyici & Kâr Analizi</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body bg-light p-4">
+            
+            <div class="row g-4">
+                <div class="col-lg-4">
+                    <div class="bg-white p-4 rounded-4 shadow-sm border border-light h-100">
+                        <input type="text" id="basket_name" class="form-control form-control-lg fw-bold mb-4 text-center shadow-none" placeholder="Paket Adı (Örn: Işıltılı Set)" style="color: var(--brand-green); border: 2px dashed #ccc; background: #fafafa; font-family: 'Cormorant Garamond', serif; font-size: 1.4rem;">
                         
-                        <div class="bg-white p-3 rounded-4 shadow-sm mb-3 border border-light">
-                            <input type="text" id="basket_name" class="form-control form-control-lg fw-bold mb-3 text-center shadow-none" placeholder="Paket Adı (Örn: Işıltılı Set)" style="color: var(--brand-green); border: 1px dashed #ccc; background: #fafafa;">
-                            
-                            <label class="small fw-bold text-muted mb-1 ms-1">Eklenecek Ürün</label>
-                            <select id="basket_product" class="form-select mb-2 shadow-none border-light bg-light" onchange="loadBasketVariants()"></select>
-                            <select id="basket_variant" class="form-select mb-2 border-info text-info fw-bold bg-info bg-opacity-10 shadow-none" style="display:none;"></select>
-                            
-                            <div class="row g-2 align-items-end mt-1">
-                                <div class="col-4">
-                                    <label class="small fw-bold text-muted mb-1 ms-1">Adet</label>
-                                    <input type="number" id="basket_qty" class="form-control text-center fw-bold shadow-none border-light bg-light" value="1" min="1">
-                                </div>
-                                <div class="col-8">
-                                    <button class="btn w-100 fw-bold text-white shadow-sm" style="background-color: var(--brand-green); letter-spacing: 0.5px;" onclick="addToBasket()"><i class="fas fa-plus me-1"></i> SEPETE EKLE</button>
-                                </div>
+                        <label class="small fw-bold text-muted mb-1 ms-1">Eklenecek Ürün</label>
+                        <select id="basket_product" class="form-select mb-2 shadow-none border-light bg-light" onchange="loadBasketVariants()"></select>
+                        <select id="basket_variant" class="form-select mb-2 border-info text-info fw-bold bg-info bg-opacity-10 shadow-none" style="display:none;"></select>
+                        
+                        <div class="row g-2 align-items-end mt-2 mb-4">
+                            <div class="col-4">
+                                <label class="small fw-bold text-muted mb-1 ms-1">Adet</label>
+                                <input type="number" id="basket_qty" class="form-control text-center fw-bold shadow-none border-light bg-light" value="1" min="1">
+                            </div>
+                            <div class="col-8">
+                                <button class="btn w-100 fw-bold text-white shadow-sm py-2" style="background-color: var(--brand-green); letter-spacing: 0.5px;" onclick="addToBasket()"><i class="fas fa-plus me-1"></i> SEPETE EKLE</button>
                             </div>
                         </div>
 
                         <div class="accordion shadow-sm" id="basketSettingsAcc">
-                          <div class="accordion-item border-0 rounded-4 overflow-hidden">
+                            <div class="accordion-item border-0 rounded-4 overflow-hidden bg-light">
                             <h2 class="accordion-header">
-                              <button class="accordion-button collapsed py-3 px-3 bg-white fw-bold text-secondary shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSettings">
-                                <i class="fas fa-sliders-h me-2 text-muted"></i> Gelişmiş Maliyet Ayarları
-                              </button>
+                                <button class="accordion-button collapsed py-3 px-3 fw-bold text-secondary shadow-none bg-white" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSettings">
+                                <i class="fas fa-sliders-h me-2 text-muted"></i> Maliyet / KDV Ayarları
+                                </button>
                             </h2>
                             <div id="collapseSettings" class="accordion-collapse collapse" data-bs-parent="#basketSettingsAcc">
-                              <div class="accordion-body bg-light border-top p-3" style="font-size: 0.85rem;">
+                                <div class="accordion-body border-top p-3" style="font-size: 0.85rem;">
                                     <label class="small text-muted fw-bold mb-1"><i class="fas fa-link"></i> Platform Kuralı Uygula</label>
                                     <select id="basket_platform" class="form-select form-select-sm border-primary fw-bold text-primary mb-3 bg-primary bg-opacity-10 shadow-none" onchange="applyBasketPlatformRule()">
                                         <option value="">-- Özel Değerler / Manuel --</option>
                                     </select>
-
                                     <div class="row g-2">
                                         <div class="col-6">
                                             <label class="small text-muted fw-bold">Kargo (KDV'siz)</label>
@@ -520,94 +528,74 @@
                                             <input type="number" id="basket_tax" class="form-control form-control-sm shadow-none" value="20" oninput="renderBasket()">
                                         </div>
                                     </div>
-                              </div>
+                                </div>
                             </div>
-                          </div>
+                            </div>
                         </div>
-
                     </div>
                 </div>
-            </div>
-            
-            <div class="col-xl-8 col-lg-7">
-                <div class="card-custom h-100 shadow-sm border-0 d-flex flex-column">
-                    <div class="bg-dark text-white d-flex justify-content-between align-items-center py-2 px-4" style="border-radius: 12px 12px 0 0;">
-                        <span class="fs-6 fw-bold"><i class="fas fa-shopping-cart me-2" style="color: var(--brand-gold);"></i> Sepet İçeriği & Özeti</span>
-                        <div class="d-flex gap-2">
-                            <div class="btn-group shadow-sm bg-white rounded-3">
-                                <button class="btn btn-sm btn-light fw-bold text-secondary border-0" onclick="exportBasketPDF('customer')" title="Müşteriye Gönderilecek Fiyatsız PDF"><i class="fas fa-file-pdf text-danger"></i> Teklif</button>
-                                <div class="border-start"></div>
-                                <button class="btn btn-sm btn-light fw-bold text-secondary border-0" onclick="exportBasketPDF('internal')" title="Maliyetleri İçeren İç Rapor"><i class="fas fa-chart-bar text-primary"></i> Rapor</button>
-                            </div>
-                            <button class="btn btn-sm btn-success fw-bold shadow-sm px-3" onclick="saveCurrentBasket()"><i class="fas fa-cloud-upload-alt me-1"></i> Kaydet</button>
-                            <button class="btn btn-sm btn-danger px-2" onclick="clearBasket()" title="Sepeti Temizle"><i class="fas fa-trash"></i></button>
-                        </div>
-                    </div>
-                    
-                    <div class="card-body p-0 d-flex flex-column flex-grow-1">
-                        
-                        <div class="table-responsive bg-white" style="flex-grow: 1; min-height: 150px; max-height: 250px; overflow-y:auto;">
+
+                <div class="col-lg-8">
+                    <div class="bg-white rounded-4 shadow-sm border border-light h-100 d-flex flex-column overflow-hidden">
+                        <div class="table-responsive bg-white" style="flex-grow: 1; min-height: 200px; max-height: 250px; overflow-y:auto; border-bottom: 1px solid #eaeaea;">
                             <table class="table table-hover align-middle mb-0">
                                 <thead class="bg-light sticky-top" style="z-index: 1;">
                                     <tr>
                                         <th class="ps-4 small text-secondary">Görsel</th>
                                         <th class="small text-secondary">Ürün Adı</th>
                                         <th class="text-center small text-secondary">Adet</th>
-                                        <th class="small text-secondary">Birim Alış (KDVli)</th>
-                                        <th class="small text-secondary">Piyasa Fiyatı</th>
+                                        <th class="small text-secondary">Alış(KDVli)</th>
                                         <th class="small text-secondary">Top. Alış</th>
-                                        <th class="text-end pe-4 small text-secondary">İşlem</th>
+                                        <th class="text-end pe-4 small text-secondary">Sil</th>
                                     </tr>
                                 </thead>
-                                <tbody id="basketBody">
-                                    </tbody>
+                                <tbody id="basketBody"></tbody>
                             </table>
                         </div>
                         
-                        <div class="p-4" style="background-color: #f8f9fa; border-radius: 0 0 12px 12px; border-top: 1px solid #eaeaea;">
-                            <div class="row g-4 align-items-stretch">
-                                
+                        <div class="p-3" style="background-color: #f8f9fa;">
+                            <div class="row g-3 align-items-stretch">
                                 <div class="col-xl-5 col-12">
-                                    <div class="bg-white p-4 rounded-4 shadow-sm border border-light h-100 d-flex flex-column justify-content-center">
-                                        <h6 class="fw-bold text-secondary border-bottom pb-2 mb-3" style="font-size: 0.9rem;"><i class="fas fa-receipt me-2 text-muted"></i> NET MALİYET DÖKÜMÜ</h6>
-                                        <div class="d-flex justify-content-between small mb-2"><span class="text-muted">Ürünler Maliyeti (KDV'siz)</span> <span id="det_buy_novat" class="fw-bold text-dark">0.00 ₺</span></div>
-                                        <div class="d-flex justify-content-between small mb-2"><span class="text-muted">Ürünler KDV Tutarı</span> <span id="det_buy_vat" class="fw-bold text-dark">0.00 ₺</span></div>
-                                        <div class="d-flex justify-content-between small mb-2 py-1 px-2 bg-light rounded-2"><span class="fw-bold text-dark">Ürünler Toplamı (KDV'li)</span> <span id="det_buy_total" class="fw-bold text-dark">0.00 ₺</span></div>
-                                        <div class="d-flex justify-content-between small mb-2 mt-2"><span class="text-muted">Kargo Gideri (KDV'li)</span> <span id="det_cargo_total" class="fw-bold text-warning">0.00 ₺</span></div>
-                                        <div class="d-flex justify-content-between small mb-3"><span class="text-muted">Hizmet Bedeli (KDV'li)</span> <span id="det_service_total" class="fw-bold text-info">0.00 ₺</span></div>
-                                        <div class="d-flex justify-content-between pt-2 border-top"><span class="fw-bold text-danger" style="font-size: 0.85rem;">Tahmini Platform Kesintisi</span> <span id="det_comm_total" class="fw-bold text-danger fs-6">0.00 ₺</span></div>
+                                    <div class="bg-white p-3 rounded-3 shadow-sm border border-light h-100 d-flex flex-column justify-content-center">
+                                        <h6 class="fw-bold text-secondary border-bottom pb-2 mb-2" style="font-size: 0.8rem;"><i class="fas fa-receipt me-2 text-muted"></i> NET MALİYET DÖKÜMÜ</h6>
+                                        <div class="d-flex justify-content-between small mb-1"><span class="text-muted">Ürünler (KDV'siz)</span> <span id="det_buy_novat" class="fw-bold text-dark">0.00 ₺</span></div>
+                                        <div class="d-flex justify-content-between small mb-1"><span class="text-muted">KDV Tutarı</span> <span id="det_buy_vat" class="fw-bold text-dark">0.00 ₺</span></div>
+                                        <div class="d-flex justify-content-between small mb-1 py-1 px-2 bg-light rounded-2"><span class="fw-bold text-dark">Ürünler (KDV'li)</span> <span id="det_buy_total" class="fw-bold text-dark">0.00 ₺</span></div>
+                                        <div class="d-flex justify-content-between small mb-1 mt-1"><span class="text-muted">Kargo (KDV'li)</span> <span id="det_cargo_total" class="fw-bold text-warning">0.00 ₺</span></div>
+                                        <div class="d-flex justify-content-between small mb-2"><span class="text-muted">Hizmet Bedeli</span> <span id="det_service_total" class="fw-bold text-info">0.00 ₺</span></div>
+                                        <div class="d-flex justify-content-between pt-1 border-top"><span class="fw-bold text-danger" style="font-size: 0.75rem;">Tahmini Kesinti</span> <span id="det_comm_total" class="fw-bold text-danger fs-6">0.00 ₺</span></div>
                                     </div>
                                 </div>
 
                                 <div class="col-xl-7 col-12">
-                                    <div class="row g-3 h-100">
+                                    <div class="row g-2 h-100">
                                         <div class="col-sm-6">
-                                            <div class="bg-white rounded-4 shadow-sm border border-danger border-opacity-25 h-100 d-flex flex-column overflow-hidden">
-                                                <div class="bg-danger bg-opacity-10 text-danger text-center py-2 fw-bold" style="font-size: 0.8rem; letter-spacing: 1px;"><i class="fas fa-laptop me-1"></i> E-TİCARET SATIŞI</div>
-                                                <div class="p-3 d-flex flex-column align-items-center flex-grow-1 justify-content-center">
-                                                    <div class="input-group input-group-lg mb-1 shadow-sm">
-                                                        <input type="number" id="basket_sell_ecom" class="form-control text-center fw-bold text-danger shadow-none" placeholder="SATIŞ FİYATI" oninput="calcBasketProfit()" style="font-size: 1.25rem; background: #fffafb; border-color: #f5c2c7;">
+                                            <div class="bg-white rounded-3 shadow-sm border border-danger border-opacity-25 h-100 d-flex flex-column overflow-hidden">
+                                                <div class="bg-danger bg-opacity-10 text-danger text-center py-1 fw-bold" style="font-size: 0.75rem;"><i class="fas fa-laptop me-1"></i> E-TİCARET</div>
+                                                <div class="p-2 d-flex flex-column align-items-center flex-grow-1 justify-content-center">
+                                                    <div class="input-group input-group-sm mb-1 shadow-sm px-2">
+                                                        <input type="number" id="basket_sell_ecom" class="form-control text-center fw-bold text-danger shadow-none" placeholder="FİYAT" oninput="calcBasketProfit()" style="font-size: 1.1rem; background: #fffafb; border-color: #f5c2c7;">
                                                         <span class="input-group-text bg-danger text-white border-danger fw-bold shadow-none">₺</span>
                                                     </div>
                                                     <div class="mt-auto w-100 text-center">
-                                                        <span id="basket_ecom_tax_val" class="text-muted d-block mb-2" style="font-size: 0.7rem;">Ödenecek KDV Çıktısı: 0.00 ₺</span>
-                                                        <div class="py-2 rounded-3 text-white fw-bold shadow-sm" id="basket_net_ecom" style="background: linear-gradient(135deg, #d9534f, #e46b68); font-size: 1.1rem; letter-spacing: 0.5px;">NET: 0.00 ₺</div>
+                                                        <span id="basket_ecom_tax_val" class="text-muted d-block mb-1" style="font-size: 0.65rem;">KDV Çıktısı: 0.00 ₺</span>
+                                                        <div class="py-1 rounded-2 text-white fw-bold shadow-sm" id="basket_net_ecom" style="background: linear-gradient(135deg, #d9534f, #e46b68); font-size: 0.95rem;">NET: 0.00 ₺</div>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
                                         
                                         <div class="col-sm-6">
-                                            <div class="bg-white rounded-4 shadow-sm border border-success border-opacity-25 h-100 d-flex flex-column overflow-hidden">
-                                                <div class="bg-success bg-opacity-10 text-success text-center py-2 fw-bold" style="font-size: 0.8rem; letter-spacing: 1px;"><i class="fas fa-store me-1"></i> MAĞAZA / ELDEN</div>
-                                                <div class="p-3 d-flex flex-column align-items-center flex-grow-1 justify-content-center">
-                                                    <div class="input-group input-group-lg mb-1 shadow-sm">
-                                                        <input type="number" id="basket_sell_store" class="form-control text-center fw-bold text-success shadow-none" placeholder="SATIŞ FİYATI" oninput="calcBasketProfit()" style="font-size: 1.25rem; background: #f9fdfa; border-color: #badbcc;">
+                                            <div class="bg-white rounded-3 shadow-sm border border-success border-opacity-25 h-100 d-flex flex-column overflow-hidden">
+                                                <div class="bg-success bg-opacity-10 text-success text-center py-1 fw-bold" style="font-size: 0.75rem;"><i class="fas fa-store me-1"></i> MAĞAZA</div>
+                                                <div class="p-2 d-flex flex-column align-items-center flex-grow-1 justify-content-center">
+                                                    <div class="input-group input-group-sm mb-1 shadow-sm px-2">
+                                                        <input type="number" id="basket_sell_store" class="form-control text-center fw-bold text-success shadow-none" placeholder="FİYAT" oninput="calcBasketProfit()" style="font-size: 1.1rem; background: #f9fdfa; border-color: #badbcc;">
                                                         <span class="input-group-text bg-success text-white border-success fw-bold shadow-none">₺</span>
                                                     </div>
                                                     <div class="mt-auto w-100 text-center">
-                                                        <span id="basket_store_tax_val" class="text-muted d-block mb-2" style="font-size: 0.7rem;">Ödenecek KDV Çıktısı: 0.00 ₺</span>
-                                                        <div class="py-2 rounded-3 text-white fw-bold shadow-sm" id="basket_net_store" style="background: linear-gradient(135deg, #5cb85c, #6ec06e); font-size: 1.1rem; letter-spacing: 0.5px;">NET: 0.00 ₺</div>
+                                                        <span id="basket_store_tax_val" class="text-muted d-block mb-1" style="font-size: 0.65rem;">KDV Çıktısı: 0.00 ₺</span>
+                                                        <div class="py-1 rounded-2 text-white fw-bold shadow-sm" id="basket_net_store" style="background: linear-gradient(135deg, #5cb85c, #6ec06e); font-size: 0.95rem;">NET: 0.00 ₺</div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -616,12 +604,23 @@
                                 </div>
                             </div>
                         </div>
-                        
                     </div>
                 </div>
             </div>
+
+          </div>
+          <div class="modal-footer bg-white border-top d-flex justify-content-between align-items-center">
+                <div class="d-flex gap-2">
+                    <button class="btn btn-light fw-bold text-secondary border shadow-sm" onclick="exportBasketPDF('customer')" title="Müşteriye Gönderilecek Fiyatsız PDF"><i class="fas fa-file-pdf text-danger"></i> Teklif PDF Çıktısı</button>
+                    <button class="btn btn-light fw-bold text-secondary border shadow-sm" onclick="exportBasketPDF('internal')" title="Maliyetleri İçeren İç Rapor"><i class="fas fa-chart-bar text-primary"></i> İç Rapor Çıktısı</button>
+                </div>
+                <div>
+                    <button class="btn btn-outline-danger fw-bold shadow-sm px-4 me-2" onclick="clearBasket()"><i class="fas fa-trash me-1"></i> Temizle</button>
+                    <button class="btn btn-success fw-bold shadow-sm px-5" style="background-color: var(--brand-green); border-color: var(--brand-green);" onclick="saveCurrentBasket()"><i class="fas fa-cloud-upload-alt me-1"></i> BULUTA KAYDET</button>
+                </div>
+          </div>
         </div>
-    </div>
+      </div>
     </div>
 
     <div id="mod-katalog" class="app-module">
@@ -3656,6 +3655,94 @@ function syncVariantTotal() {
             window.renderDashboard();
         }
     }
+    // --- YENİ EKRAN (MODAL) İÇİN JAVASCRIPT GÜNCELLEMELERİ ---
+    var basketEditorModalInstance = null;
+    
+    // Pencereyi hafızaya alma işlemi
+    function getBasketModal() {
+        if(!basketEditorModalInstance) {
+            basketEditorModalInstance = new bootstrap.Modal(document.getElementById('basketEditorModal'));
+        }
+        return basketEditorModalInstance;
+    }
+
+    // Üstteki "Yeni Paket Oluştur" butonuna basınca
+    window.openNewBasketModal = function() {
+        resetActiveBasket(); // Formu temizle
+        getBasketModal().show(); // Şık pencereyi aç
+    };
+
+    // Tablodan "Düzenle" butonuna basınca
+    window.loadSavedBasket = function(bid) {
+        var b = savedBaskets.find(function(x) { return x.id == bid; });
+        if(!b) return;
+        
+        activeBasketId = b.id;
+        document.getElementById('basket_name').value = b.name;
+        document.getElementById('basket_ship').value = b.ship;
+        document.getElementById('basket_comm').value = b.comm;
+        document.getElementById('basket_tax').value = b.tax;
+        document.getElementById('basket_sell_ecom').value = b.sellEcom;
+        document.getElementById('basket_sell_store').value = b.sellStore;
+        
+        basketList = [];
+        var missingItems = false;
+        b.items.forEach(function(item) {
+            var p = productList.find(function(x) { return x.id == item.pid; });
+            if(p) { basketList.push({ p: p, qty: item.qty, variant: item.variant }); } 
+            else { missingItems = true; }
+        });
+
+        if(missingItems) alert("Uyarı: Bu paketin içindeki bazı ürünler stoklardan silinmiş!");
+        renderBasket();
+        
+        // Eskiden aşağıya kaydırıyordu, artık direkt şık pencereyi açacak
+        getBasketModal().show();
+    };
+
+    // Penceredeki "Buluta Kaydet" butonuna basınca
+    window.saveCurrentBasket = async function() {
+        if(basketList.length === 0) { alert("Sepetinizde ürün bulunmuyor!"); return; }
+        
+        var nameInput = document.getElementById('basket_name').value.trim();
+        if(!nameInput) {
+            nameInput = prompt("Paket/Sepet için bir ad girin (Örn: İkili Bakım Seti):");
+            if(!nameInput) return;
+            document.getElementById('basket_name').value = nameInput;
+        }
+        
+        var existingBasket = activeBasketId ? savedBaskets.find(function(x) { return x.id == activeBasketId; }) : null;
+        var basketData = {
+            id: activeBasketId || Date.now(),
+            name: nameInput,
+            desc: existingBasket ? (existingBasket.desc || "") : "", 
+            items: basketList.map(function(i) { return { pid: i.p.id, qty: i.qty, variant: i.variant || null }; }), 
+            ship: parseFloat(document.getElementById('basket_ship').value) || 0,
+            comm: parseFloat(document.getElementById('basket_comm').value) || 0,
+            tax: parseFloat(document.getElementById('basket_tax').value) || 0,
+            sellEcom: parseFloat(document.getElementById('basket_sell_ecom').value) || 0,
+            sellStore: parseFloat(document.getElementById('basket_sell_store').value) || 0
+        };
+
+        try {
+            if(activeBasketId) {
+                if(existingBasket && existingBasket.fbId) {
+                    await window.fbUpdateDoc(window.fbDoc(window.db, "baskets", existingBasket.fbId), basketData);
+                } else {
+                    await window.fbAddDoc(window.fbCollection(window.db, "baskets"), basketData);
+                }
+            } else {
+                activeBasketId = basketData.id;
+                await window.fbAddDoc(window.fbCollection(window.db, "baskets"), basketData);
+            }
+            
+            await window.fetchFromFirestore();
+            alert("Paket başarıyla BULUTA kaydedildi!");
+            getBasketModal().hide(); // Kayıt bitince pencereyi otomatik kapat!
+        } catch(e) {
+            alert("Buluta kaydedilirken hata oluştu: " + e.message);
+        }
+    };
 </script>
 </body>
 </html>
