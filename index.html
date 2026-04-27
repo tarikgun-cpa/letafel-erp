@@ -455,8 +455,9 @@
                             <tr>
                                 <th class="ps-4 text-secondary py-3 small">Paket Adı</th>
                                 <th class="text-secondary py-3 small">İçerik Detayı</th>
-                                <th class="text-secondary py-3 small">E-Ticaret Fiyatı</th>
-                                <th class="text-secondary py-3 small">Mağaza Fiyatı</th>
+                                <th class="text-center text-secondary py-3 small">Lojistik Kutu</th>
+                                <th class="text-end text-secondary py-3 small">E-Tic. Fiyat / Kâr</th>
+                                <th class="text-end text-secondary py-3 small">Mağaza Fiyat / Kâr</th>
                                 <th class="text-end pe-4 text-secondary py-3 small">İşlemler</th>
                             </tr>
                         </thead>
@@ -1843,28 +1844,91 @@ if(p.variants && p.variants.length > 0) {
         tbody.innerHTML = '';
         
         if(savedBaskets.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Henüz kayıtlı paket yok. Aşağıdan oluşturup kaydedebilirsiniz.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-5">Henüz kayıtlı paket yok. Yukarıdaki butonlardan yeni paket oluşturabilirsiniz.</td></tr>';
             return;
         }
 
         savedBaskets.forEach(function(b) {
             var itemsText = b.items.length + " Çeşit Ürün";
+            
+            // LİSTE ÜZERİNDE ANLIK KÂR HESAPLAMASI
+            var totalBasketBuyCost = 0;
+            b.items.forEach(function(item) {
+                var p = productList.find(x => x.id == item.pid);
+                if(p) totalBasketBuyCost += (parseFloat(p.buy) || 0) * item.qty;
+            });
+
+            var taxRate = parseFloat(b.tax) || 20;
+            var commRate = (parseFloat(b.comm) || 0) / 100;
+            var taxFactor = 1 + (taxRate / 100);
+            var innerTax = (taxRate / 100) / taxFactor;
+
+            var shipEx = parseFloat(b.ship) || 0;
+            var serviceEx = parseFloat(b.service) || 0;
+            var sellEcom = parseFloat(b.sellEcom) || 0;
+            var sellStore = parseFloat(b.sellStore) || 0;
+
+            var freeShipLimit = parseFloat(localStorage.getItem('freeShipLimit')) || 350;
+            if(sellEcom > 0 && sellEcom < freeShipLimit) { shipEx = 0; }
+
+            var shipInc = shipEx * taxFactor;
+            var serviceInc = serviceEx * taxFactor;
+            var currentBasketEcomCost = totalBasketBuyCost + shipInc + serviceInc;
+            
+            var vatInputProducts = totalBasketBuyCost - (totalBasketBuyCost / taxFactor);
+            var vatInputCargo = shipInc - shipEx;
+            var vatInputService = serviceInc - serviceEx;
+            var vatInputEcom = vatInputProducts + vatInputCargo + vatInputService;
+            var vatInputStore = vatInputProducts;
+
+            var netEcom = 0, netStore = 0;
+            if(sellEcom > 0 && b.items.length > 0) {
+                var commAmount = sellEcom * commRate;
+                var vatOutEcom = sellEcom * innerTax;
+                var vatPayEcom = Math.max(0, vatOutEcom - vatInputEcom);
+                netEcom = sellEcom - commAmount - vatPayEcom - currentBasketEcomCost;
+            }
+            if(sellStore > 0 && b.items.length > 0) {
+                var vatOutStore = sellStore * innerTax;
+                var vatPayStore = Math.max(0, vatOutStore - vatInputStore);
+                netStore = sellStore - vatPayStore - totalBasketBuyCost;
+            }
+
+            // KUTU (LOJİSTİK) GÖRSELLEŞTİRMESİ
+            var boxHtml = '<span class="badge bg-light text-muted border px-2 py-1 shadow-sm"><i class="fas fa-box"></i> Özel Paket</span>';
+            if (b.box && b.box.toLowerCase().includes('büyük')) {
+                boxHtml = '<span class="badge bg-primary bg-opacity-10 text-primary border border-primary px-2 py-1 shadow-sm"><i class="fas fa-box-open me-1 fs-6"></i> Büyük Kutu</span>';
+            } else if (b.box && b.box.toLowerCase().includes('küçük')) {
+                boxHtml = '<span class="badge bg-info bg-opacity-10 text-info border border-info px-2 py-1 shadow-sm"><i class="fas fa-box me-1 fs-6"></i> Küçük Kutu</span>';
+            }
+
             tbody.innerHTML += 
                 '<tr>' +
-                    '<td class="fw-bold text-primary">' + b.name + '</td>' +
-                    '<td><span class="badge bg-secondary">' + itemsText + '</span></td>' +
-                    '<td class="text-danger fw-bold">' + (parseFloat(b.sellEcom)||0).toFixed(2) + ' ₺</td>' +
-                    '<td class="text-success fw-bold">' + (parseFloat(b.sellStore)||0).toFixed(2) + ' ₺</td>' +
+                    '<td class="ps-4">' +
+                        '<div class="fw-bold text-dark" style="font-size: 0.95rem;">' + b.name + '</div>' +
+                    '</td>' +
+                    '<td><span class="badge bg-secondary shadow-sm">' + itemsText + '</span></td>' +
+                    '<td class="text-center">' + boxHtml + '</td>' +
                     '<td class="text-end">' +
-                        '<button class="btn btn-sm btn-outline-warning fw-bold me-1 text-dark" onclick="sendBasketToCatalog(' + b.id + ')" title="E-Ticaret Görseli Hazırla"><i class="fas fa-images"></i> Kataloğa Aktar</button>' +
-                        '<button class="btn btn-sm btn-outline-primary me-1" onclick="loadSavedBasket(' + b.id + ')" title="Bu Paketi Aşağıda Düzenle"><i class="fas fa-edit"></i> Düzenle</button>' +
-                        '<button class="btn btn-sm btn-success fw-bold me-1 text-white shadow-sm" onclick="openSellBasketModal(' + b.id + ')"><i class="fas fa-shopping-cart"></i> Satış Yap</button>' +
-                        '<button class="btn btn-sm btn-outline-danger" onclick="deleteSavedBasket(' + b.id + ')" title="Paketi Sil"><i class="fas fa-trash"></i></button>' +
+                        '<div class="text-danger fw-bold fs-6">' + sellEcom.toFixed(2) + ' ₺</div>' +
+                        '<div class="small fw-bold ' + (netEcom >= 0 ? 'text-success' : 'text-danger') + '">Kâr: ' + netEcom.toFixed(2) + ' ₺</div>' +
+                    '</td>' +
+                    '<td class="text-end">' +
+                        '<div class="text-success fw-bold fs-6">' + sellStore.toFixed(2) + ' ₺</div>' +
+                        '<div class="small fw-bold ' + (netStore >= 0 ? 'text-success' : 'text-danger') + '">Kâr: ' + netStore.toFixed(2) + ' ₺</div>' +
+                    '</td>' +
+                    '<td class="text-end pe-4">' +
+                        '<div class="btn-group shadow-sm bg-white rounded-3">' +
+                            '<button class="btn btn-sm btn-light border-0 fw-bold text-warning" onclick="sendBasketToCatalog(' + b.id + ')" title="Kataloğa Aktar"><i class="fas fa-images"></i></button>' +
+                            '<button class="btn btn-sm btn-light border-0 fw-bold text-primary" onclick="loadSavedBasket(' + b.id + ')" title="Düzenle"><i class="fas fa-edit"></i></button>' +
+                            '<button class="btn btn-sm btn-light border-0 fw-bold text-success" onclick="openSellBasketModal(' + b.id + ')" title="Satış Yap"><i class="fas fa-shopping-cart"></i></button>' +
+                            '<div class="border-start"></div>' +
+                            '<button class="btn btn-sm btn-light border-0 fw-bold text-danger" onclick="deleteSavedBasket(' + b.id + ')" title="Sil"><i class="fas fa-trash"></i></button>' +
+                        '</div>' +
                     '</td>' +
                 '</tr>';
         });
     }
-
     async function saveCurrentBasket() {
         if(basketList.length === 0) { alert("Sepetinizde ürün bulunmuyor!"); return; }
         
@@ -2183,29 +2247,23 @@ if(p.variants && p.variants.length > 0) {
             id: Date.now() + Math.floor(Math.random()*1000), 
             name: "✨ AI: " + pkg.name, 
             desc: pkg.desc_customer || "",
+            box: pkg.desc_box || "", // KUTU BİLGİSİ EKLENDİ
             items: pkg.items.map(item => ({pid: item.pid, qty: item.qty, variant: item.variant || null})),
-            ship: 83.93, comm: 21, tax: 20, 
+            ship: 83.93, comm: 21, tax: 20, service: 0,
             sellEcom: parseFloat((totalEcom * 0.90).toFixed(2)), 
             sellStore: parseFloat((totalStore * 0.90).toFixed(2)) 
         };
         
-        if(btnElement) {
-            btnElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Kaydediliyor...';
-            btnElement.className = 'btn btn-sm btn-secondary fw-bold disabled';
-        }
-
+        if(btnElement) { btnElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Kaydediliyor...'; btnElement.className = 'btn btn-sm btn-secondary fw-bold disabled'; }
         try {
             await window.fbAddDoc(window.fbCollection(window.db, "baskets"), newBasket);
-            await window.fetchFromFirestore(); // Güncel listeyi çek
+            await window.fetchFromFirestore(); 
             if(btnElement) btnElement.innerHTML = '<i class="fas fa-check"></i> Kaydedildi';
         } catch (e) {
-            alert("Buluta kaydedilirken hata oluştu!");
-            if(btnElement) {
-                btnElement.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Buluta Kaydet';
-                btnElement.className = 'btn btn-sm btn-success fw-bold';
-            }
+            alert("Buluta kaydedilirken hata!");
+            if(btnElement) { btnElement.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Buluta Kaydet'; btnElement.className = 'btn btn-sm btn-success fw-bold'; }
         }
-    }
+    };
 
     var totalBasketBuyCost = 0;
     var totalBasketStoreCost = 0;
@@ -3716,9 +3774,11 @@ function syncVariantTotal() {
             id: activeBasketId || Date.now(),
             name: nameInput,
             desc: existingBasket ? (existingBasket.desc || "") : "", 
+            box: existingBasket ? (existingBasket.box || "") : "", // KUTU HAFIZASI
             items: basketList.map(function(i) { return { pid: i.p.id, qty: i.qty, variant: i.variant || null }; }), 
             ship: parseFloat(document.getElementById('basket_ship').value) || 0,
             comm: parseFloat(document.getElementById('basket_comm').value) || 0,
+            service: parseFloat(document.getElementById('basket_service').value) || 0, // HİZMET BEDELİ EKLENDİ
             tax: parseFloat(document.getElementById('basket_tax').value) || 0,
             sellEcom: parseFloat(document.getElementById('basket_sell_ecom').value) || 0,
             sellStore: parseFloat(document.getElementById('basket_sell_store').value) || 0
@@ -3735,13 +3795,10 @@ function syncVariantTotal() {
                 activeBasketId = basketData.id;
                 await window.fbAddDoc(window.fbCollection(window.db, "baskets"), basketData);
             }
-            
             await window.fetchFromFirestore();
             alert("Paket başarıyla BULUTA kaydedildi!");
-            getBasketModal().hide(); // Kayıt bitince pencereyi otomatik kapat!
-        } catch(e) {
-            alert("Buluta kaydedilirken hata oluştu: " + e.message);
-        }
+            getBasketModal().hide();
+        } catch(e) { alert("Hata oluştu: " + e.message); }
     };
 </script>
 </body>
