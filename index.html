@@ -764,15 +764,17 @@
             <div class="col-md-6">
                 <label class="small fw-bold text-secondary mb-1">1. Ürün Bilgisi</label>
                 <div class="input-group input-group-sm mb-2">
-                    <select id="inp_cat" class="form-select fw-bold text-dark">
-                        <option>Makyaj Süngerleri</option><option>Makyaj Fırçaları</option>
-                        <option>Dudak ve Göz Makyaj Ürünleri</option><option>El, Ayak ve Tırnak Bakımı</option>
-                        <option>Kirpik ve Kaş Ürünleri</option><option>Saç ve Vücut Bakımı</option>
-                        <option>Temizlik ve Hijyen</option>
-                    </select>
+                    <input list="catList" id="inp_cat" class="form-control form-control-sm mb-2 fw-bold" placeholder="Kategori Seçiniz veya Yeni Yazınız (*)" required>
+                    <datalist id="catList">
+                        <option value="Makyaj Süngerleri">
+                        <option value="Makyaj Fırçaları">
+                        <option value="Dudak ve Göz Makyaj Ürünleri">
+                        <option value="El, Ayak ve Tırnak Bakımı">
+                        <option value="Kirpik ve Kaş Ürünleri">
+                        <option value="Saç ve Vücut Bakımı">
+                        <option value="Temizlik ve Hijyen">
+                    </datalist>
                 </div>
-                <input type="text" id="inp_name" class="form-control form-control-sm mb-2 fw-bold" placeholder="Ürün Adı (*)" required>
-
                 <div class="row g-2 mb-2">
                     <div class="col-6"><input type="text" id="inp_bar" class="form-control form-control-sm" placeholder="Barkod"></div>
                     <div class="col-6"><input type="text" id="inp_manuf" class="form-control form-control-sm" placeholder="Üretici"></div>
@@ -1670,35 +1672,42 @@ if(p.variants && p.variants.length > 0) {
     }
 
     function renderTxTable() {
-        try {
-            var tbody = document.getElementById('txBody');
-            if(!tbody) return;
-            tbody.innerHTML = '';
-            var sortedTx = txList.slice().sort(function(a, b) { return b.id - a.id; });
-            for(var i=0; i<sortedTx.length; i++) {
-                var tx = sortedTx[i];
-                var badge = tx.type === 'IN' ? '<span class="badge bg-success">📥 ALIM</span>' : '<span class="badge bg-danger">📤 SATIŞ</span>';
-                var pName = "Silinmiş Ürün";
-                for(var j=0; j<productList.length; j++) {
-                    if(productList[j] && productList[j].id == tx.pid) { pName = productList[j].name; break; }
+    try {
+        var tbody = document.getElementById('txBody');
+        if(!tbody) return;
+        tbody.innerHTML = '';
+        var sortedTx = txList.slice().sort(function(a, b) { return b.id - a.id; });
+        for(var i=0; i<sortedTx.length; i++) {
+            var tx = sortedTx[i];
+            var badge = tx.type === 'IN' ? '<span class="badge bg-success">📥 ALIM</span>' : '<span class="badge bg-danger">📤 SATIŞ</span>';
+            var pName = "Silinmiş Ürün";
+            
+            for(var j=0; j<productList.length; j++) {
+                if(productList[j] && productList[j].id == tx.pid) { 
+                    pName = productList[j].name; 
+                    // İşlemde varyant varsa ismin yanına etiket ekler
+                    if(tx.variant) pName += ' <span class="badge bg-info text-dark ms-1">' + tx.variant + '</span>';
+                    break; 
                 }
-                tbody.innerHTML += 
-                    '<tr>' +
-                        '<td class="fw-bold text-muted">' + (tx.date || '-') + '</td>' +
-                        '<td>' + badge + '</td>' +
-                        '<td class="fw-bold">' + pName + '</td>' +
-                        '<td>' + tx.qty + '</td>' +
-                        '<td class="text-primary fw-bold">' + (tx.price ? parseFloat(tx.price).toFixed(2) + ' ₺' : '-') + '</td>' +
-                        '<td>' + (tx.party || '-') + '</td>' +
-                        '<td class="small text-muted">' + (tx.desc || '-') + '</td>' +
-                        '<td class="text-end">' +
-                            '<button class="btn btn-sm btn-outline-secondary me-1" onclick="editTransaction(' + tx.id + ')" title="İşlemi Düzenle"><i class="fas fa-edit"></i> Düzenle</button>' +
-                            '<button class="btn btn-sm btn-outline-danger" onclick="deleteTransaction(' + tx.id + ')" title="İptal Et"><i class="fas fa-trash"></i></button>' +
-                        '</td>' +
-                    '</tr>';
             }
-        } catch(e) {}
-    }
+            
+            tbody.innerHTML += 
+                '<tr>' +
+                    '<td class="fw-bold text-muted">' + (tx.date || '-') + '</td>' +
+                    '<td>' + badge + '</td>' +
+                    '<td class="fw-bold">' + pName + '</td>' +
+                    '<td>' + tx.qty + '</td>' +
+                    '<td class="text-primary fw-bold">' + (tx.price ? parseFloat(tx.price).toFixed(2) + ' ₺' : '-') + '</td>' +
+                    '<td>' + (tx.party || '-') + '</td>' +
+                    '<td class="small text-muted">' + (tx.desc || '-') + '</td>' +
+                    '<td class="text-end text-nowrap">' +
+                        '<button class="btn btn-sm btn-outline-secondary me-1" onclick="editTransaction(' + tx.id + ')" title="İşlemi Düzenle"><i class="fas fa-edit"></i></button>' +
+                        '<button class="btn btn-sm btn-outline-danger" onclick="deleteTransaction(' + tx.id + ')" title="İptal Et"><i class="fas fa-trash"></i></button>' +
+                    '</td>' +
+                '</tr>';
+        }
+    } catch(e) {}
+}
 
     function editTransaction(txId) {
         try {
@@ -1752,103 +1761,98 @@ if(p.variants && p.variants.length > 0) {
     }
 
     function saveTransaction() {
+    try {
+        var type = document.getElementById('tx_type').value; var date = document.getElementById('tx_date').value;
+        var pid = document.getElementById('tx_product').value; var qty = parseInt(document.getElementById('tx_qty').value);
+        var party = document.getElementById('tx_party').value; var desc = document.getElementById('tx_desc').value;
+        var newPrice = parseFloat(document.getElementById('tx_buy_price').value);
+
+        if(!pid || isNaN(qty) || qty <= 0 || !date) { alert("Tarih, Ürün ve Adet alanları zorunludur."); return; }
+
+        var pIndex = -1;
+        for(var i=0; i<productList.length; i++) { if(productList[i] && productList[i].id == pid) { pIndex = i; break; } }
+
+        if(pIndex > -1) {
+            var p = productList[pIndex]; var mevcut = parseInt(p.qty) || 0; var isPriceUpdated = false;
+            var selectedVariant = document.getElementById('tx_variant').style.display === "block" ? document.getElementById('tx_variant').value : null;
+            
+            if(type === 'IN') {
+                p.qty = mevcut + qty;
+                if(selectedVariant && p.variants) {
+                    var vObj = p.variants.find(v => v.name === selectedVariant);
+                    if(vObj) vObj.qty = parseInt(vObj.qty) + qty;
+                }
+            } else {
+                if(mevcut < qty) { alert("Stok yetersiz! İşlem yapılamaz."); return; }
+                p.qty = mevcut - qty;
+                if(selectedVariant && p.variants) {
+                    var vObj = p.variants.find(v => v.name === selectedVariant);
+                    if(vObj) vObj.qty = Math.max(0, (parseInt(vObj.qty) || 0) - qty);
+                }
+            }
+
+            var tx = { id: Date.now(), type: type, date: date, pid: pid, qty: qty, party: party, desc: desc, price: (!isNaN(newPrice) && newPrice > 0) ? newPrice : null, variant: selectedVariant };
+            txList.push(tx); 
+            saveSafeData();
+
+            // BULUT GÜNCELLEMESİ (Stok Senkronizasyonu İçin Kritik Adım)
+            if (p.fbId) {
+                window.fbUpdateDoc(window.fbDoc(window.db, "products", p.fbId), { qty: p.qty, variants: p.variants || [] });
+            }
+
+            document.getElementById('tx_qty').value = ""; document.getElementById('tx_party').value = ""; document.getElementById('tx_desc').value = ""; document.getElementById('tx_buy_price').value = "";
+            
+            updateSelects(); 
+            loadTxVariants(); // Ürün seçim listesindeki varyant stoğunu anlık günceller
+            renderTable(); 
+            renderTxTable();
+            checkEntrepreneurLimit();
+            alert("İşlem başarıyla kaydedildi ve stoklar güncellendi.");
+        }
+    } catch(e) { console.error("Kayıt hatası:", e); }
+}
+
+    function deleteTransaction(txId) {
+    if(confirm("Bu işlemi iptal edip, stoğu eski haline getirmek istediğinize emin misiniz?")) {
         try {
-            var type = document.getElementById('tx_type').value; var date = document.getElementById('tx_date').value;
-            var pid = document.getElementById('tx_product').value; var qty = parseInt(document.getElementById('tx_qty').value);
-            var party = document.getElementById('tx_party').value; var desc = document.getElementById('tx_desc').value;
-            var newPrice = parseFloat(document.getElementById('tx_buy_price').value);
-
-            if(!pid || isNaN(qty) || qty <= 0 || !date) { alert("Tarih, Ürün ve Adet alanları zorunludur."); return; }
-
-            var pIndex = -1;
-            for(var i=0; i<productList.length; i++) { if(productList[i] && productList[i].id == pid) { pIndex = i; break; } }
-
-            if(pIndex > -1) {
-                var p = productList[pIndex]; var mevcut = parseInt(p.qty) || 0; var isPriceUpdated = false;
-                var selectedVariant = document.getElementById('tx_variant').style.display === "block" ? document.getElementById('tx_variant').value : null;
+            var txIndex = -1;
+            for(var i=0; i<txList.length; i++) { if(txList[i] && txList[i].id == txId) { txIndex = i; break; } }
+            if(txIndex > -1) {
+                var tx = txList[txIndex];
+                var targetProduct = null;
                 
-                if(type === 'IN') {
-                    p.qty = mevcut + qty;
-                    if(selectedVariant && p.variants) {
-                        var vObj = p.variants.find(v => v.name === selectedVariant);
-                        if(vObj) vObj.qty = parseInt(vObj.qty) + qty;
-                    }
-                    if(!isNaN(newPrice) && newPrice > 0 && newPrice !== p.buy) {
-                        if(confirm("Bu ürünün alış fiyatını " + newPrice + " TL olarak girdiniz.\nAna ürün kartındaki fiyatı ve satış maliyetlerini güncelleyeyim mi?")) {
-                            document.getElementById('inp_tax').value = p.tax || 20; document.getElementById('inp_ship').value = p.ship || 83.93;
-                            document.getElementById('inp_comm').value = p.comm || 21; document.getElementById('inp_margin_ecom').value = p.marginEcom / 100 || 30;
-                            document.getElementById('inp_margin_store').value = p.marginStore / 100 || 40;
-                            var recalc = runCalcSafe('margin', newPrice);
-                            p.buy = recalc.buy; p.costEcom = recalc.costEcom; p.costStore = recalc.costStore; p.sellEcom = recalc.sellEcom; p.sellStore = recalc.sellStore; p.netEcom = recalc.netEcom; p.netStore = recalc.netStore;
-                            p.breakEvenEcom = recalc.breakEvenEcom; p.breakEvenStore = recalc.breakEvenStore; p.commAmount = recalc.commAmount; p.shipInc = recalc.shipInc;
-                            isPriceUpdated = true;
+                for(var j=0; j<productList.length; j++) {
+                    if(productList[j] && productList[j].id == tx.pid) {
+                        targetProduct = productList[j];
+                        var mevcut = parseInt(targetProduct.qty) || 0;
+                        if(tx.type === 'IN') targetProduct.qty = mevcut - tx.qty; 
+                        if(tx.type === 'OUT') targetProduct.qty = mevcut + tx.qty;
+                        
+                        // Varyant İadesi Düzeltmesi
+                        if(tx.variant && targetProduct.variants) {
+                            var vObj = targetProduct.variants.find(v => v.name === tx.variant);
+                            if(vObj) {
+                                if(tx.type === 'IN') vObj.qty = Math.max(0, parseInt(vObj.qty) - tx.qty);
+                                if(tx.type === 'OUT') vObj.qty = parseInt(vObj.qty) + tx.qty;
+                            }
                         }
-                    }
-                } else {
-                    // SATIŞ (OUT) İŞLEMİ
-                    if(mevcut < qty) { alert("Stok yetersiz! İşlem yapılamaz."); return; }
-                    p.qty = mevcut - qty;
-                    
-                    // YENİ: Seçili varyantın stoğunu da düş
-                    var selectedVariant = document.getElementById('tx_variant').style.display === "block" ? document.getElementById('tx_variant').value : null;
-                    if(selectedVariant && p.variants) {
-                        var vObj = p.variants.find(v => v.name === selectedVariant);
-                        if(vObj) {
-                            vObj.qty = Math.max(0, (parseInt(vObj.qty) || 0) - qty);
-                        }
+                        break;
                     }
                 }
-
-                // Hangi varyantın seçildiğini buluyoruz
-    var selectedVariantName = document.getElementById('tx_variant').style.display === "block" ? document.getElementById('tx_variant').value : null;
-    
-    // İşlemi deftere yazarken "variant" bilgisini de ekliyoruz
-    var tx = { 
-        id: Date.now(), 
-        type: type, 
-        date: date, 
-        pid: pid, 
-        qty: qty, 
-        party: party, 
-        desc: desc, 
-        price: (!isNaN(newPrice) && newPrice > 0) ? newPrice : null, 
-        variant: selectedVariantName 
-    };
-    
-    txList.push(tx); // BU KOD EKLENDİ: İşlemi ana listeye dahil ediyoruz!
-    saveSafeData();
-                document.getElementById('tx_qty').value = ""; document.getElementById('tx_party').value = ""; document.getElementById('tx_desc').value = ""; document.getElementById('tx_buy_price').value = "";
-                updateSelects(); renderTable(); renderTxTable();
                 
-                var msg = "İşlem Deftere Yazıldı! Yeni Stok: " + p.qty;
-                if(isPriceUpdated) msg += "\nFiyatlar ve maliyetler güncellendi.";
-                checkEntrepreneurLimit();
-                alert(msg);
+                txList.splice(txIndex, 1);
+                saveSafeData(); 
+                
+                // BULUT GÜNCELLEMESİ İLE İADEYİ KALICI YAP
+                if (targetProduct && targetProduct.fbId) {
+                    window.fbUpdateDoc(window.fbDoc(window.db, "products", targetProduct.fbId), { qty: targetProduct.qty, variants: targetProduct.variants || [] });
+                }
+
+                updateSelects(); renderTable(); renderTxTable();
             }
         } catch(e) {}
     }
-
-    function deleteTransaction(txId) {
-        if(confirm("Bu işlemi iptal edip, stoğu eski haline getirmek istediğinize emin misiniz?")) {
-            try {
-                var txIndex = -1;
-                for(var i=0; i<txList.length; i++) { if(txList[i] && txList[i].id == txId) { txIndex = i; break; } }
-                if(txIndex > -1) {
-                    var tx = txList[txIndex];
-                    for(var j=0; j<productList.length; j++) {
-                        if(productList[j] && productList[j].id == tx.pid) {
-                            var mevcut = parseInt(productList[j].qty) || 0;
-                            if(tx.type === 'IN') productList[j].qty = mevcut - tx.qty; 
-                            if(tx.type === 'OUT') productList[j].qty = mevcut + tx.qty;
-                            break;
-                        }
-                    }
-                    txList.splice(txIndex, 1);
-                    saveSafeData(); updateSelects(); renderTable(); renderTxTable();
-                }
-            } catch(e) {}
-        }
-    }
+}
 
 
     // ==========================================
@@ -2326,75 +2330,59 @@ if(p.variants && p.variants.length > 0) {
         }
 
         for(var i=0; i<basketList.length; i++) {
-            var item = basketList[i];
-            var p = item.p; // Kısalttık
-            var displayImg = (p.img && (p.img.indexOf('data:image') === 0 || p.img.indexOf('http') === 0)) ? p.img : PLACEHOLDER_IMG;
-            var lineTotal = (p.buy * item.qty); // KDV Dahil Tutar
-            totalBasketBuyCost += lineTotal;
-            totalVatInput += (lineTotal - (lineTotal / taxFactor));
+    var item = basketList[i];
+    var p = item.p; 
+    var displayImg = (p.img && (p.img.indexOf('data:image') === 0 || p.img.indexOf('http') === 0)) ? p.img : PLACEHOLDER_IMG;
+    var lineTotal = (p.buy * item.qty); 
+    totalBasketBuyCost += lineTotal;
+    totalVatInput += (lineTotal - (lineTotal / taxFactor));
 
-            // --- YENİ EKLENEN: Bireysel perakende fiyatlarını sepet adetleriyle çarpıp topla ---
-            totalRecEcom += (parseFloat(p.sellEcom) || parseFloat(p.buy) || 0) * item.qty;
-            totalRecStore += (parseFloat(p.sellStore) || parseFloat(p.buy) || 0) * item.qty;
-
-            // --- 1. İSTEK (ÇÖZÜM): Varyant bilgisini ürün isminin yanına şık bir etiketle ekle ---
-            var pNameDisplay = p.name;
-            if(item.variant) {
-                pNameDisplay += ' <span class="badge bg-info text-dark ms-1 shadow-sm" style="font-size:0.75rem;"><i class="fas fa-tag"></i> ' + item.variant + '</span>';
-            }
-
-            // PİYASA VE TAVSİYE FİYATLARINI OLUŞTURMA
-            var marketInfo = '<div style="font-size:0.75rem; line-height:1.4;">';
-            if (p.sellEcom || p.sellStore) {
-                marketInfo += '<div class="fw-bold"><span class="text-danger">E: ' + (parseFloat(p.sellEcom)||0).toFixed(2) + '₺</span> | <span class="text-success">M: ' + (parseFloat(p.sellStore)||0).toFixed(2) + '₺</span></div>';
-            }
-            
-            var comps = [];
-            if (p.comp_ty) comps.push('TY: ' + parseFloat(p.comp_ty).toFixed(2));
-            if (p.comp_hb) comps.push('HB: ' + parseFloat(p.comp_hb).toFixed(2));
-            if (p.comp_amz) comps.push('AMZ: ' + parseFloat(p.comp_amz).toFixed(2));
-            if (p.comp_cs) comps.push('ÇS: ' + parseFloat(p.comp_cs).toFixed(2));
-            if (p.comp_ig) comps.push('IG: ' + parseFloat(p.comp_ig).toFixed(2));
-            
-            if (comps.length > 0) {
-                marketInfo += '<div class="text-muted" style="font-size:0.65rem;">' + comps.join(' | ') + '</div>';
-            } else {
-                marketInfo += '<div class="text-muted" style="font-size:0.65rem;">Piyasa verisi yok</div>';
-            }
-            marketInfo += '</div>';
-
-            tbody.innerHTML += 
-                '<tr>' +
-                    '<td><img src="' + displayImg + '" class="thumb-sm"></td>' +
-                    '<td class="fw-bold text-dark">' + pNameDisplay + '</td>' + // YENİ VARYANTLI İSİM
-                    '<td class="text-center fw-bold">' + item.qty + '</td>' +
-                    '<td>' + parseFloat(p.buy).toFixed(2) + ' ₺</td>' +
-                    '<td>' + marketInfo + '</td>' +
-                    '<td class="text-primary fw-bold">' + lineTotal.toFixed(2) + ' ₺</td>' +
-                    '<td class="text-end"><button class="btn btn-sm btn-outline-danger" onclick="removeFromBasket(' + i + ')"><i class="fas fa-times"></i></button></td>' +
-                '</tr>';
-        }
-
-        var shipEx = parseFloat(document.getElementById('basket_ship').value) || 0;
-        var shipInc = shipEx * taxFactor;
-
-        totalBasketStoreCost = totalBasketBuyCost;
-        totalBasketEcomCost = totalBasketBuyCost + shipInc;
-        
-        var buyNoVat = totalBasketBuyCost / taxFactor;
-        var buyVatAmount = totalBasketBuyCost - buyNoVat;
-
-        document.getElementById('det_buy_novat').innerText = buyNoVat.toFixed(2) + " ₺";
-        document.getElementById('det_buy_vat').innerText = buyVatAmount.toFixed(2) + " ₺";
-        document.getElementById('det_buy_total').innerText = totalBasketBuyCost.toFixed(2) + " ₺";
-        document.getElementById('det_cargo_total').innerText = shipEx.toFixed(2) + " ₺ / " + shipInc.toFixed(2) + " ₺";
-
-        // --- 2. İSTEK (ÇÖZÜM): Fiyat önerilerini ekrana yansıt ---
-        updateSuggestions(totalRecEcom, totalRecStore);
-
-        calcBasketProfit(); 
+    // ÇARPAN (minQty) DÜZELTMESİ EKLENDİ
+    var pMinQty = parseInt(p.minQty) || 1;
+    var ecomUnitPrice = (parseFloat(p.sellEcom) || parseFloat(p.buy) || 0);
+    if (pMinQty > 1) {
+        ecomUnitPrice = ecomUnitPrice / pMinQty; // 4'lü set fiyatını tekil fiyata düşürür
     }
 
+    totalRecEcom += ecomUnitPrice * item.qty;
+    totalRecStore += (parseFloat(p.sellStore) || parseFloat(p.buy) || 0) * item.qty;
+
+    var pNameDisplay = p.name;
+    if(item.variant) {
+        pNameDisplay += ' <span class="badge bg-info text-dark ms-1 shadow-sm" style="font-size:0.75rem;"><i class="fas fa-tag"></i> ' + item.variant + '</span>';
+    }
+
+    var marketInfo = '<div style="font-size:0.75rem; line-height:1.4;">';
+    if (p.sellEcom || p.sellStore) {
+        // Ekrana da düzeltilmiş birim fiyatı yansıtıyoruz
+        marketInfo += '<div class="fw-bold"><span class="text-danger">E: ' + ecomUnitPrice.toFixed(2) + '₺</span> | <span class="text-success">M: ' + (parseFloat(p.sellStore)||0).toFixed(2) + '₺</span></div>';
+    }
+    
+    var comps = [];
+    if (p.comp_ty) comps.push('TY: ' + parseFloat(p.comp_ty).toFixed(2));
+    if (p.comp_hb) comps.push('HB: ' + parseFloat(p.comp_hb).toFixed(2));
+    if (p.comp_amz) comps.push('AMZ: ' + parseFloat(p.comp_amz).toFixed(2));
+    if (p.comp_cs) comps.push('ÇS: ' + parseFloat(p.comp_cs).toFixed(2));
+    if (p.comp_ig) comps.push('IG: ' + parseFloat(p.comp_ig).toFixed(2));
+    
+    if (comps.length > 0) {
+        marketInfo += '<div class="text-muted" style="font-size:0.65rem;">' + comps.join(' | ') + '</div>';
+    } else {
+        marketInfo += '<div class="text-muted" style="font-size:0.65rem;">Piyasa verisi yok</div>';
+    }
+    marketInfo += '</div>';
+
+    tbody.innerHTML += 
+        '<tr>' +
+            '<td><img src="' + displayImg + '" class="thumb-sm"></td>' +
+            '<td class="fw-bold text-dark">' + pNameDisplay + '</td>' + 
+            '<td class="text-center fw-bold">' + item.qty + '</td>' +
+            '<td>' + parseFloat(p.buy).toFixed(2) + ' ₺</td>' +
+            '<td>' + marketInfo + '</td>' +
+            '<td class="text-primary fw-bold">' + lineTotal.toFixed(2) + ' ₺</td>' +
+            '<td class="text-end"><button class="btn btn-sm btn-outline-danger" onclick="removeFromBasket(' + i + ')"><i class="fas fa-times"></i></button></td>' +
+        '</tr>';
+}
     // --- 2. İSTEK İÇİN YARDIMCI FONKSİYON: Önerilen Fiyatları Kutuların Altına Yazar ---
     function updateSuggestions(recEcom, recStore) {
         // E-TİCARET Önerisi
@@ -3658,11 +3646,10 @@ function syncVariantTotal() {
         var monthlyData = {};
         var totalRevenue = 0; var totalProfit = 0;
 
-        // --- YENİ: AY LİSTESİNİN BOŞ KALMAMASI İÇİN GEÇERLİ AYI ZORLA EKLİYORUZ ---
+        // Geçerli ayı zorla ekliyoruz
         var currentDateObj = new Date();
         var currentMonthKey = currentDateObj.getFullYear() + "-" + String(currentDateObj.getMonth() + 1).padStart(2, '0');
         monthlyData[currentMonthKey] = { itemsSold: 0, revGross: 0, costGross: 0, kdvOut: 0, kdvIn: 0 };
-        // --------------------------------------------------------------------------
 
         // KDV'li ve KDV'siz Ciro / Maliyet Hesaplamaları
         txList.forEach(tx => {
@@ -3681,11 +3668,11 @@ function syncVariantTotal() {
                 
                 var lineRevGross = tx.qty * tx.price;
                 var lineRevNet = lineRevGross / taxFactor;
-                var lineKdvOut = lineRevGross - lineRevNet; // Müşteriden Alınan KDV
+                var lineKdvOut = lineRevGross - lineRevNet; 
                 
                 var lineCostGross = tx.qty * unitCostGross;
                 var lineCostNet = lineCostGross / taxFactor;
-                var lineKdvIn = lineCostGross - lineCostNet; // Toptancıya Ödenen KDV
+                var lineKdvIn = lineCostGross - lineCostNet; 
                 
                 monthlyData[monthKey].itemsSold += tx.qty;
                 monthlyData[monthKey].revGross += lineRevGross;
@@ -3700,18 +3687,18 @@ function syncVariantTotal() {
         var tbody = document.getElementById('dash_monthly_body');
         var monthSelect = document.getElementById('expense_month');
         if(tbody) tbody.innerHTML = '';
-        
-        // Sadece ilk renderda select'i doldur (gider ekleyince resetlenmemesi için)
-        var shouldFillSelect = (monthSelect && monthSelect.options.length === 0);
+
+        var currentSelection = monthSelect ? monthSelect.value : null;
+        if(monthSelect) monthSelect.innerHTML = '';
         var sortedMonths = Object.keys(monthlyData).sort().reverse();
-        
+
         sortedMonths.forEach(m => {
             var d = monthlyData[m];
             
             // Giderleri Topla (Dizi Mantığı)
             var expTotal = 0;
             if(window.monthlyExpenses[m]) {
-                if(typeof window.monthlyExpenses[m] === 'number') { // Eski sürümden kalmaysa dönüştür
+                if(typeof window.monthlyExpenses[m] === 'number') { 
                     window.monthlyExpenses[m] = [{desc: "Devreden Eski Gider", amt: window.monthlyExpenses[m]}];
                     localStorage.setItem('monthlyExpenses', JSON.stringify(window.monthlyExpenses));
                 }
@@ -3719,16 +3706,16 @@ function syncVariantTotal() {
             }
             
             var odenecekKdv = d.kdvOut - d.kdvIn;
-            if(odenecekKdv < 0) odenecekKdv = 0; // Devreden KDV matrahı (Basit yaklaşım)
+            if(odenecekKdv < 0) odenecekKdv = 0; 
             
             var brut = d.revGross - d.costGross - odenecekKdv;
             var net = brut - expTotal;
-            totalProfit += net; // Tüm zamanların gerçek net kârı
+            totalProfit += net; 
             
             var parts = m.split('-');
             var mName = new Date(parts[0], parts[1]-1).toLocaleString('tr-TR', { month: 'long', year: 'numeric' });
 
-            if(shouldFillSelect) monthSelect.innerHTML += `<option value="${m}">${mName}</option>`;
+            if(monthSelect) monthSelect.innerHTML += `<option value="${m}">${mName}</option>`;
 
             tbody.innerHTML += `
                 <tr>
@@ -3743,12 +3730,14 @@ function syncVariantTotal() {
             `;
         });
         
+        if(monthSelect && currentSelection) monthSelect.value = currentSelection;
+
         document.getElementById('dash_total_revenue').innerText = totalRevenue.toLocaleString('tr-TR', {minimumFractionDigits: 2}) + " ₺";
         document.getElementById('dash_total_profit').innerText = totalProfit.toLocaleString('tr-TR', {minimumFractionDigits: 2}) + " ₺";
         
         if(sortedMonths.length === 0) tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Henüz finansal hesaplama yapılabilecek bir satış kaydı bulunmuyor.</td></tr>';
         
-        renderExpenseList(); // Ay seçimine göre alttaki listeyi güncelle
+        renderExpenseList(); 
     }
 
     window.saveMonthlyExpense = function() {
@@ -3770,27 +3759,41 @@ function syncVariantTotal() {
         window.renderDashboard();
     }
 
-    // Seçilen aya ait çoklu giderleri listeleyen yardımcı fonksiyon
-    window.renderExpenseList = function() {
-        var m = document.getElementById('expense_month').value;
-        var container = document.getElementById('expense_list_container');
-        if(!container) return;
-        container.innerHTML = "";
-        
-        if(m && window.monthlyExpenses[m] && window.monthlyExpenses[m].length > 0) {
-            window.monthlyExpenses[m].forEach(function(exp, index) {
-                container.innerHTML += `
-                    <div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom border-danger">
-                        <div class="small fw-bold text-secondary text-truncate" style="max-width: 65%;">${exp.desc}</div>
-                        <div class="small text-danger fw-bold">${exp.amt.toLocaleString('tr-TR', {minimumFractionDigits: 2})} ₺ 
-                            <i class="fas fa-times ms-2 text-muted" style="cursor:pointer;" onclick="deleteExpense('${m}', ${index})"></i>
-                        </div>
-                    </div>`;
-            });
-        } else {
-            container.innerHTML = '<div class="small text-muted text-center py-2">Bu ay için kayıtlı ek gider yok.</div>';
-        }
+    window.editExpense = function(month, index) {
+    var exp = window.monthlyExpenses[month][index];
+    var newDesc = prompt("Gider Açıklamasını Düzenle:", exp.desc);
+    if (newDesc === null || newDesc.trim() === "") return;
+    
+    var newAmt = prompt("Gider Tutarını Düzenle (₺):", exp.amt);
+    if (newAmt === null || isNaN(parseFloat(newAmt))) return;
+    
+    window.monthlyExpenses[month][index].desc = newDesc.trim();
+    window.monthlyExpenses[month][index].amt = parseFloat(newAmt);
+    localStorage.setItem('monthlyExpenses', JSON.stringify(window.monthlyExpenses));
+    window.renderDashboard();
+}
+
+window.renderExpenseList = function() {
+    var m = document.getElementById('expense_month').value;
+    var container = document.getElementById('expense_list_container');
+    if(!container) return;
+    container.innerHTML = "";
+    
+    if(m && window.monthlyExpenses[m] && window.monthlyExpenses[m].length > 0) {
+        window.monthlyExpenses[m].forEach(function(exp, index) {
+            container.innerHTML += `
+                <div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom border-danger">
+                    <div class="small fw-bold text-secondary text-truncate" style="max-width: 60%;">${exp.desc}</div>
+                    <div class="small text-danger fw-bold">${exp.amt.toLocaleString('tr-TR', {minimumFractionDigits: 2})} ₺ 
+                        <i class="fas fa-edit ms-2 text-primary" style="cursor:pointer;" onclick="editExpense('${m}', ${index})" title="Düzenle"></i>
+                        <i class="fas fa-times ms-2 text-muted" style="cursor:pointer;" onclick="deleteExpense('${m}', ${index})" title="Sil"></i>
+                    </div>
+                </div>`;
+        });
+    } else {
+        container.innerHTML = '<div class="small text-muted text-center py-2">Bu ay için kayıtlı ek gider yok.</div>';
     }
+}
 
     window.deleteExpense = function(month, index) {
         if(confirm("Bu gider kalemini silmek istediğinize emin misiniz?")) {
