@@ -1686,7 +1686,7 @@ if(p.variants && p.variants.length > 0) {
                     '<tr>' +
                         '<td class="fw-bold text-muted">' + (tx.date || '-') + '</td>' +
                         '<td>' + badge + '</td>' +
-                        '<td class="fw-bold">' + pName + '</td>' +
+                        '<td class="fw-bold">' + pName + (tx.variant ? ' <span class="badge bg-info text-dark ms-1" style="font-size:0.7rem;"><i class="fas fa-tag"></i> ' + tx.variant + '</span>' : '') + '</td>' +
                         '<td>' + tx.qty + '</td>' +
                         '<td class="text-primary fw-bold">' + (tx.price ? parseFloat(tx.price).toFixed(2) + ' ₺' : '-') + '</td>' +
                         '<td>' + (tx.party || '-') + '</td>' +
@@ -1790,7 +1790,6 @@ if(p.variants && p.variants.length > 0) {
                     p.qty = mevcut - qty;
                     
                     // YENİ: Seçili varyantın stoğunu da düş
-                    var selectedVariant = document.getElementById('tx_variant').style.display === "block" ? document.getElementById('tx_variant').value : null;
                     if(selectedVariant && p.variants) {
                         var vObj = p.variants.find(v => v.name === selectedVariant);
                         if(vObj) {
@@ -1799,33 +1798,43 @@ if(p.variants && p.variants.length > 0) {
                     }
                 }
 
-                // Hangi varyantın seçildiğini buluyoruz
-    var selectedVariantName = document.getElementById('tx_variant').style.display === "block" ? document.getElementById('tx_variant').value : null;
-    
-    // İşlemi deftere yazarken "variant" bilgisini de ekliyoruz
-    var tx = { 
-        id: Date.now(), 
-        type: type, 
-        date: date, 
-        pid: pid, 
-        qty: qty, 
-        party: party, 
-        desc: desc, 
-        price: (!isNaN(newPrice) && newPrice > 0) ? newPrice : null, 
-        variant: selectedVariantName 
-    };
-    
-    txList.push(tx); // BU KOD EKLENDİ: İşlemi ana listeye dahil ediyoruz!
-    saveSafeData();
-                document.getElementById('tx_qty').value = ""; document.getElementById('tx_party').value = ""; document.getElementById('tx_desc').value = ""; document.getElementById('tx_buy_price').value = "";
-                updateSelects(); renderTable(); renderTxTable();
+                // İşlemi deftere yazarken "variant" bilgisini de ekliyoruz
+                var tx = { 
+                    id: Date.now(), 
+                    type: type, 
+                    date: date, 
+                    pid: pid, 
+                    qty: qty, 
+                    party: party, 
+                    desc: desc, 
+                    price: (!isNaN(newPrice) && newPrice > 0) ? newPrice : null, 
+                    variant: selectedVariant 
+                };
                 
-                var msg = "İşlem Deftere Yazıldı! Yeni Stok: " + p.qty;
-                if(isPriceUpdated) msg += "\nFiyatlar ve maliyetler güncellendi.";
-                checkEntrepreneurLimit();
-                alert(msg);
+                txList.push(tx); 
+                saveSafeData();
+                
+                // İşlemi Firebase bulutuna da kaydet
+                if(window.fbAddDoc && window.db) {
+                    window.fbAddDoc(window.fbCollection(window.db, "transactions"), tx)
+                    .then(async () => { 
+                        // YENİ: Düşülen/Eklenen stoğu ürün kartına (Buluta) işle
+                        if(p.fbId) {
+                            await window.fbUpdateDoc(window.fbDoc(window.db, "products", p.fbId), p);
+                        }
+                        window.fetchFromFirestore(); 
+                    }) 
+                    .catch(e => console.error("Buluta işlem kaydedilemedi:", e));
+                }
+                
+                document.getElementById('tx_qty').value = "";
+                document.getElementById('tx_party').value = "";
+                document.getElementById('tx_desc').value = "";
+                document.getElementById('tx_buy_price').value = "";
+                renderTable(); renderTxTable(); updateSelects();
+                alert("İşlem başarıyla kaydedildi!");
             }
-        } catch(e) {}
+        } catch(e) { alert("Kaydedilirken hata oluştu."); }
     }
 
     function deleteTransaction(txId) {
@@ -1835,11 +1844,31 @@ if(p.variants && p.variants.length > 0) {
                 for(var i=0; i<txList.length; i++) { if(txList[i] && txList[i].id == txId) { txIndex = i; break; } }
                 if(txIndex > -1) {
                     var tx = txList[txIndex];
+                    
+                    // YENİ EKLENEN: İşlemi buluttan sil
+                    if(tx.fbId && window.fbDeleteDoc && window.db) {
+                        window.fbDeleteDoc(window.fbDoc(window.db, "transactions", tx.fbId)).catch(e=>console.log(e));
+                    }
+
                     for(var j=0; j<productList.length; j++) {
                         if(productList[j] && productList[j].id == tx.pid) {
                             var mevcut = parseInt(productList[j].qty) || 0;
                             if(tx.type === 'IN') productList[j].qty = mevcut - tx.qty; 
                             if(tx.type === 'OUT') productList[j].qty = mevcut + tx.qty;
+                            
+                            // Varyant iptali
+                            if(tx.variant && productList[j].variants) {
+                                var vObj = productList[j].variants.find(v => v.name === tx.variant);
+                                if(vObj) {
+                                    if(tx.type === 'IN') vObj.qty = Math.max(0, parseInt(vObj.qty) - tx.qty);
+                                    if(tx.type === 'OUT') vObj.qty = parseInt(vObj.qty) + tx.qty;
+                                }
+                            }
+                            
+                            // YENİ: İade edilen stoğu buluta kaydet
+                            if(productList[j].fbId && window.fbUpdateDoc && window.db) {
+                                window.fbUpdateDoc(window.fbDoc(window.db, "products", productList[j].fbId), productList[j]);
+                            }
                             break;
                         }
                     }
@@ -1849,8 +1878,6 @@ if(p.variants && p.variants.length > 0) {
             } catch(e) {}
         }
     }
-
-
     // ==========================================
     // YENİ: PAKET / SEPET MODÜLÜ İŞLEMLERİ V32
     // ==========================================
@@ -2273,7 +2300,11 @@ if(p.variants && p.variants.length > 0) {
         var totalEcom = 0, totalStore = 0;
         pkg.items.forEach(item => {
             var p = productList.find(x => x.id == item.pid);
-            if(p) { totalEcom += (parseFloat(p.sellEcom) || parseFloat(p.buy) || 0) * item.qty; totalStore += (parseFloat(p.sellStore) || parseFloat(p.buy) || 0) * item.qty; }
+            if(p) { 
+                var pMinQty = parseInt(p.minQty) || 1;
+                totalEcom += ((parseFloat(p.sellEcom) || 0) / pMinQty || parseFloat(p.buy) || 0) * item.qty; 
+                totalStore += (parseFloat(p.sellStore) || parseFloat(p.buy) || 0) * item.qty; 
+            }
         });
         
         var newBasket = { 
@@ -2334,7 +2365,11 @@ if(p.variants && p.variants.length > 0) {
             totalVatInput += (lineTotal - (lineTotal / taxFactor));
 
             // --- YENİ EKLENEN: Bireysel perakende fiyatlarını sepet adetleriyle çarpıp topla ---
-            totalRecEcom += (parseFloat(p.sellEcom) || parseFloat(p.buy) || 0) * item.qty;
+            // Çoklu paketi birim fiyata indirger
+            var pMinQty = parseInt(p.minQty) || 1;
+            var unitEcomPrice = (parseFloat(p.sellEcom) || 0) / pMinQty;
+            if(unitEcomPrice === 0) unitEcomPrice = parseFloat(p.buy) || 0;
+            totalRecEcom += unitEcomPrice * item.qty;
             totalRecStore += (parseFloat(p.sellStore) || parseFloat(p.buy) || 0) * item.qty;
 
             // --- 1. İSTEK (ÇÖZÜM): Varyant bilgisini ürün isminin yanına şık bir etiketle ekle ---
@@ -2344,9 +2379,11 @@ if(p.variants && p.variants.length > 0) {
             }
 
             // PİYASA VE TAVSİYE FİYATLARINI OLUŞTURMA
-            var marketInfo = '<div style="font-size:0.75rem; line-height:1.4;">';
+            var marketInfo = '<div class="mb-1" style="font-size: 0.8rem;">';
             if (p.sellEcom || p.sellStore) {
-                marketInfo += '<div class="fw-bold"><span class="text-danger">E: ' + (parseFloat(p.sellEcom)||0).toFixed(2) + '₺</span> | <span class="text-success">M: ' + (parseFloat(p.sellStore)||0).toFixed(2) + '₺</span></div>';
+                var pMinQty = parseInt(p.minQty) || 1;
+                var unitEcomDisp = (parseFloat(p.sellEcom) || 0) / pMinQty;
+                marketInfo += '<div class="fw-bold"><span class="text-danger">E (1 Adet): ' + unitEcomDisp.toFixed(2) + '₺</span> | <span class="text-success">M: ' + (parseFloat(p.sellStore)||0).toFixed(2) + '₺</span></div>';
             }
             
             var comps = [];
@@ -2575,7 +2612,8 @@ if(p.variants && p.variants.length > 0) {
         b.items.forEach(function(item) {
             var p = productList.find(x => x.id == item.pid);
             if(p) {
-                var pPrice = channel === 'E-TİCARET' ? (parseFloat(p.sellEcom) || parseFloat(p.buy) || 0) : (parseFloat(p.sellStore) || parseFloat(p.buy) || 0);
+                var pMinQty = parseInt(p.minQty) || 1;
+                var pPrice = channel === 'E-TİCARET' ? ((parseFloat(p.sellEcom) || 0) / pMinQty || parseFloat(p.buy) || 0) : (parseFloat(p.sellStore) || parseFloat(p.buy) || 0);
                 baseTotal += (pPrice * item.qty);
             }
         });
@@ -2593,7 +2631,8 @@ if(p.variants && p.variants.length > 0) {
                 }
 
                 // Orantısal Fiyat Hesaplama
-                var pPrice = channel === 'E-TİCARET' ? (parseFloat(p.sellEcom) || parseFloat(p.buy) || 0) : (parseFloat(p.sellStore) || parseFloat(p.buy) || 0);
+                var pMinQty = parseInt(p.minQty) || 1;
+                var pPrice = channel === 'E-TİCARET' ? ((parseFloat(p.sellEcom) || 0) / pMinQty || parseFloat(p.buy) || 0) : (parseFloat(p.sellStore) || parseFloat(p.buy) || 0);
                 var weight = baseTotal > 0 ? ((pPrice * item.qty) / baseTotal) : (1 / b.items.length);
                 var allocatedTotalPrice = actualTotalPrice * weight;
                 var unitSalePrice = allocatedTotalPrice / item.qty; // Birim fiyata indirge
@@ -2607,17 +2646,25 @@ if(p.variants && p.variants.length > 0) {
                     qty: item.qty, 
                     party: party, 
                     desc: "Sepet: [" + b.name + "]" + vText + " " + channel + " - " + desc, 
-                    price: parseFloat(unitSalePrice.toFixed(2)), // Fiyat Artık Boş Değil!
+                    price: parseFloat(unitSalePrice.toFixed(2)), 
                     variant: item.variant 
                 };
                 txList.push(tx);
+                
+                // YENİ: Sepet satışını ve stok düşüşünü buluta kaydet
+                if(window.fbAddDoc && window.db) {
+                    window.fbAddDoc(window.fbCollection(window.db, "transactions"), tx);
+                }
+                if(p.fbId && window.fbUpdateDoc && window.db) {
+                    window.fbUpdateDoc(window.fbDoc(window.db, "products", p.fbId), p);
+                }
             }
         });
 
         saveSafeData(); renderTable(); renderTxTable(); updateSelects(); 
         if(sellBasketModalInstance) sellBasketModalInstance.hide();
         checkEntrepreneurLimit();
-        alert("Satış başarılı!\nFiyatlar orantılı olarak bölündü ve deftere işlendi.");
+        alert("Satış başarılı!\nFiyatlar birim bazında orantılı olarak bölündü ve deftere işlendi.");
     }
 
     // ... (EXCEL VE PDF FONKSİYONLARI BURADA KORUNMUŞTUR) ...
@@ -3658,10 +3705,13 @@ function syncVariantTotal() {
         var monthlyData = {};
         var totalRevenue = 0; var totalProfit = 0;
 
-        // --- YENİ: AY LİSTESİNİN BOŞ KALMAMASI İÇİN GEÇERLİ AYI ZORLA EKLİYORUZ ---
         var currentDateObj = new Date();
-        var currentMonthKey = currentDateObj.getFullYear() + "-" + String(currentDateObj.getMonth() + 1).padStart(2, '0');
-        monthlyData[currentMonthKey] = { itemsSold: 0, revGross: 0, costGross: 0, kdvOut: 0, kdvIn: 0 };
+        // Geçmiş ve gelecek toplam 12 ayı menüye ekle
+        for(let i = -1; i <= 11; i++) {
+        let d = new Date(currentDateObj.getFullYear(), currentDateObj.getMonth() - i, 1);
+        let mKey = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, '0');
+        if(!monthlyData[mKey]) monthlyData[mKey] = { itemsSold: 0, revGross: 0, costGross: 0, kdvOut: 0, kdvIn: 0 };
+        }
         // --------------------------------------------------------------------------
 
         // KDV'li ve KDV'siz Ciro / Maliyet Hesaplamaları
@@ -3768,6 +3818,7 @@ function syncVariantTotal() {
         document.getElementById('expense_amount').value = "";
         
         window.renderDashboard();
+        window.syncExpensesToCloud(); // <-- YENİ EKLENEN KISIM BURASI
     }
 
     // Seçilen aya ait çoklu giderleri listeleyen yardımcı fonksiyon
@@ -3797,8 +3848,23 @@ function syncVariantTotal() {
             window.monthlyExpenses[month].splice(index, 1);
             localStorage.setItem('monthlyExpenses', JSON.stringify(window.monthlyExpenses));
             window.renderDashboard();
+            window.syncExpensesToCloud(); // <-- YENİ EKLENEN KISIM BURASI
         }
     }
+        window.syncExpensesToCloud = async function() {
+    try {
+        var snap = await window.fbGetDocs(window.fbCollection(window.db, "settings"));
+        var expDocId = null;
+        snap.forEach(doc => { if(doc.data().type === 'expenses') expDocId = doc.id; });
+        var payload = { type: 'expenses', data: JSON.stringify(window.monthlyExpenses) };
+        if(expDocId) {
+            await window.fbUpdateDoc(window.fbDoc(window.db, "settings", expDocId), payload);
+        } else {
+            await window.fbAddDoc(window.fbCollection(window.db, "settings"), payload);
+        }
+    } catch(e) {}
+};
+
     // --- YENİ EKRAN (MODAL) İÇİN JAVASCRIPT GÜNCELLEMELERİ ---
     var basketEditorModalInstance = null;
 
@@ -3901,9 +3967,10 @@ function syncVariantTotal() {
         document.getElementById('basket_ship').value = b.ship;
         document.getElementById('basket_comm').value = b.comm;
         document.getElementById('basket_tax').value = b.tax;
+        document.getElementById('basket_service').value = b.service || 0; 
         document.getElementById('basket_sell_ecom').value = b.sellEcom;
         document.getElementById('basket_sell_store').value = b.sellStore;
-        document.getElementById('basket_box_size').value = b.box || ""; // KAYITLI KUTUYU YÜKLER
+        document.getElementById('basket_box_size').value = b.box || ""; 
         
         basketList = [];
         var missingItems = false;
