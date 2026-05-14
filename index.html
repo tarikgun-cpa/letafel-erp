@@ -1497,6 +1497,7 @@ function importPlatformSettingsCSV(input) {
                 
                 var pubBadge = p.pub ? '<span class="badge bg-success badge-status shadow-sm"><i class="fas fa-wifi"></i> Web\'de Yayında</span>' : '<span class="badge bg-secondary badge-status shadow-sm"><i class="fas fa-signal"></i> Web\'e Kapalı</span>';
 
+                // 1. ANA LİSTEYE EKLEME (Toplam Stok 0'dan büyükse ana tabloya çiz)
                 if(qty > 0) {
                     var tr = document.createElement('tr');
                     tr.innerHTML = 
@@ -1513,7 +1514,6 @@ function importPlatformSettingsCSV(input) {
                             pubBadge + 
                             '<div class="badge bg-white text-dark border mt-2 w-100 py-2 shadow-sm" style="font-size: 0.85rem;">Toplam: ' + qty + '</div>' +
                             (function() {
-                                // Varyant detaylarını küçük bir liste olarak ekle
                                 var variantHtml = "";
                                 if(p.variants && p.variants.length > 0) {
                                     variantHtml = '<div class="mt-2 p-1 bg-light rounded border" style="font-size:0.65rem; line-height:1.2;">';
@@ -1562,17 +1562,35 @@ function importPlatformSettingsCSV(input) {
                             '<button class="btn btn-sm btn-outline-danger fw-bold w-100" onclick="deleteItem(\'' + p.id + '\')"><i class="fas fa-trash"></i> SİL</button>' +
                         '</td>';
                     tbody.appendChild(tr);
-                } else {
-                    tukenlerBody.innerHTML += 
-                        '<tr>' +
-                            '<td><img src="' + displayImg + '" class="thumb" style="filter: grayscale(100%);"></td>' +
-                            '<td class="fw-bold text-muted">' + (p.name || '') + '</td>' +
-                            '<td>' + (p.bar || '-') + '</td>' +
-                            '<td>' + (p.whole || '-') + '</td>' +
-                            '<td><span class="badge bg-danger p-2"><i class="fas fa-exclamation-triangle"></i> STOK YOK (0)</span></td>' +
-                        '</tr>';
                 }
-            }
+
+                // 2. TÜKENENLER LİSTESİNE EKLEME (Varyantları veya Ana Stoğu Kontrol Et)
+                if (p.variants && p.variants.length > 0) {
+                    p.variants.forEach(function(v) {
+                        if (parseInt(v.qty) <= 0) {
+                            tukenlerBody.innerHTML += 
+                                '<tr>' +
+                                    '<td class="text-center"><img src="' + displayImg + '" class="thumb" style="width: 60px; height: 60px; filter: grayscale(100%);"></td>' +
+                                    '<td><div class="fw-bold text-muted">' + (p.name || '') + '</div><span class="badge bg-secondary">' + v.name + '</span></td>' +
+                                    '<td>' + (p.bar || '-') + '</td>' +
+                                    '<td>' + (p.whole || '-') + '</td>' +
+                                    '<td><span class="badge bg-danger p-2"><i class="fas fa-exclamation-triangle"></i> STOK YOK</span></td>' +
+                                '</tr>';
+                        }
+                    });
+                } else {
+                    if (qty <= 0) {
+                        tukenlerBody.innerHTML += 
+                            '<tr>' +
+                                '<td class="text-center"><img src="' + displayImg + '" class="thumb" style="width: 60px; height: 60px; filter: grayscale(100%);"></td>' +
+                                '<td class="fw-bold text-muted">' + (p.name || '') + '</td>' +
+                                '<td>' + (p.bar || '-') + '</td>' +
+                                '<td>' + (p.whole || '-') + '</td>' +
+                                '<td><span class="badge bg-danger p-2"><i class="fas fa-exclamation-triangle"></i> STOK YOK</span></td>' +
+                            '</tr>';
+                    }
+                }
+            } // <-- İŞTE BURASI: Döngüyü kapatan eksik parantez eklendi
         } catch(e) {}
     }
 
@@ -3582,10 +3600,10 @@ function syncVariantTotal() {
             savedBaskets.push(data);
         });
 
-        // LOGOLARI BULUTTAN ÇEKME KISMI EKLENDİ
+        // AYARLARI (LOGO VE GİDERLERİ) BULUTTAN ÇEKME
         try {
-            const logoDoc = await window.fbGetDocs(window.fbCollection(window.db, "settings"));
-            logoDoc.forEach(doc => {
+            const settingsDoc = await window.fbGetDocs(window.fbCollection(window.db, "settings"));
+            settingsDoc.forEach(doc => {
                 if(doc.data().type === 'logos') {
                     if(doc.data().main) {
                         document.getElementById('view_main_logo').src = doc.data().main;
@@ -3594,6 +3612,13 @@ function syncVariantTotal() {
                     }
                     if(doc.data().catalog) {
                         document.getElementById('company-logo').src = doc.data().catalog;
+                    }
+                }
+                // YENİ EKLENEN: Giderleri buluttan çek
+                if(doc.data().type === 'expenses') {
+                    if(doc.data().data) {
+                        window.monthlyExpenses = JSON.parse(doc.data().data);
+                        localStorage.setItem('monthlyExpenses', doc.data().data);
                     }
                 }
             });
