@@ -226,30 +226,37 @@
 <div class="container-fluid px-4">
 <div id="mod-ozet" class="app-module">
         <div class="row g-3 mb-4">
-            <div class="col-md-3">
+            <div class="col">
                 <div class="card-custom bg-primary text-white p-3 h-100 shadow-sm">
-                    <h6 class="fw-bold mb-1"><i class="fas fa-boxes"></i> Toplam Ürün Çeşidi</h6>
+                    <h6 class="fw-bold mb-1" style="font-size:0.9rem;"><i class="fas fa-boxes"></i> Ürün Çeşidi</h6>
                     <h3 class="mb-0" id="dash_total_products">0</h3>
                     <div class="small mt-2 opacity-75" id="dash_total_stock">Toplam Stok: 0 Adet</div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col">
                 <div class="card-custom text-white p-3 h-100 shadow-sm" style="background-color: #d9534f;">
-                    <h6 class="fw-bold mb-1"><i class="fas fa-lira-sign"></i> Stok Maliyet Değeri</h6>
+                    <h6 class="fw-bold mb-1" style="font-size:0.9rem;"><i class="fas fa-lira-sign"></i> Stok Değeri</h6>
                     <h3 class="mb-0" id="dash_total_cost">0.00 ₺</h3>
                     <div class="small mt-2 opacity-75">KDV Dahil Güncel Alış Tutarınız</div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col">
+                <div class="card-custom text-white p-3 h-100 shadow-sm" style="background-color: #6c757d;">
+                    <h6 class="fw-bold mb-1" style="font-size:0.9rem;"><i class="fas fa-wallet"></i> Toplam Giderler</h6>
+                    <h3 class="mb-0" id="dash_total_expenses">0.00 ₺</h3>
+                    <div class="small mt-2 opacity-75">Tüm zamanların sabit giderleri</div>
+                </div>
+            </div>
+            <div class="col">
                 <div class="card-custom bg-success text-white p-3 h-100 shadow-sm">
-                    <h6 class="fw-bold mb-1"><i class="fas fa-cash-register"></i> Toplam Satış (Ciro)</h6>
+                    <h6 class="fw-bold mb-1" style="font-size:0.9rem;"><i class="fas fa-cash-register"></i> Toplam Ciro</h6>
                     <h3 class="mb-0" id="dash_total_revenue">0.00 ₺</h3>
                     <div class="small mt-2 opacity-75">Tüm zamanların satışı</div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col">
                 <div class="card-custom text-white p-3 h-100 shadow-sm" style="background-color: var(--brand-gold);">
-                    <h6 class="fw-bold mb-1"><i class="fas fa-chart-line"></i> Tahmini Net Kâr</h6>
+                    <h6 class="fw-bold mb-1" style="font-size:0.9rem;"><i class="fas fa-chart-line"></i> Tahmini Kâr</h6>
                     <h3 class="mb-0" id="dash_total_profit">0.00 ₺</h3>
                     <div class="small mt-2 opacity-75">Satışlardan elde edilen kâr</div>
                 </div>
@@ -284,6 +291,11 @@
                 <div class="card-custom border-danger h-100">
                     <div class="card-head bg-danger text-white"><i class="fas fa-file-invoice-dollar me-2"></i> Aylık Sabit / Diğer Giderler</div>
                     <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-2 bg-light rounded px-2 py-1 border">
+                            <button class="btn btn-sm text-danger fw-bold fs-5" onclick="changeDashboardYear(-1)">&laquo;</button>
+                            <span class="fw-bold text-dark fs-6" id="dashboard_year_label">2026</span>
+                            <button class="btn btn-sm text-danger fw-bold fs-5" onclick="changeDashboardYear(1)">&raquo;</button>
+                        </div>
                         <select id="expense_month" class="form-select mb-2 fw-bold" onchange="renderExpenseList()"></select>
                         <input type="text" id="expense_desc" class="form-control mb-2 form-control-sm" placeholder="Gider Açıklaması (Kira, Personel vb.)">
                         <div class="input-group input-group-sm mb-3">
@@ -391,8 +403,16 @@
             
             <div class="col-lg-8">
                 <div class="card-custom h-100 shadow-sm border-0 d-flex flex-column">
-                    <div class="card-head py-3 px-4 d-flex align-items-center" style="background: var(--brand-green); color: var(--brand-gold); border-radius: 12px 12px 0 0;">
+                    <div class="card-head py-3 px-4 d-flex align-items-center justify-content-between" style="background: var(--brand-green); color: var(--brand-gold); border-radius: 12px 12px 0 0;">
                         <span class="fs-6 fw-bold letter-spacing-1"><i class="fas fa-history me-2"></i> GEÇMİŞ İŞLEMLER DEFTERİ</span>
+                        <button class="btn btn-sm btn-outline-light text-warning fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#partySummaryCollapse"><i class="fas fa-chart-bar"></i> Cari / Kişi Özeti</button>
+                    </div>
+                    <div class="collapse" id="partySummaryCollapse">
+                        <div class="bg-light p-3 border-bottom shadow-inner" style="max-height: 200px; overflow-y: auto;">
+                            <div class="row g-2" id="partySummaryContainer">
+                                <div class="text-muted small text-center">Hesaplanıyor...</div>
+                            </div>
+                        </div>
                     </div>
                     <div class="card-body p-0">
                         <div class="table-responsive" style="height: 65vh; overflow-y: auto;">
@@ -1689,6 +1709,35 @@ if(p.variants && p.variants.length > 0) {
 
     function renderTxTable() {
         try {
+        // YENİ: CARİ (KARŞI TARAF) ÖZETİ HESAPLAMA
+            var partySummary = {};
+            for(var x=0; x<txList.length; x++) {
+                var t = txList[x];
+                if(!t.party) continue;
+                var pName = t.party.trim().toUpperCase();
+                if(!pName) continue;
+                if(!partySummary[pName]) partySummary[pName] = { inTotal: 0, outTotal: 0 };
+                
+                var lineTotal = (parseFloat(t.price) || 0) * parseInt(t.qty);
+                if(t.type === 'IN') partySummary[pName].inTotal += lineTotal;
+                if(t.type === 'OUT') partySummary[pName].outTotal += lineTotal;
+            }
+
+            var summaryHtml = '';
+            for(var key in partySummary) {
+                var s = partySummary[key];
+                if(s.inTotal === 0 && s.outTotal === 0) continue;
+                summaryHtml += '<div class="col-md-4"><div class="border rounded bg-white p-2 shadow-sm border-start border-4 ' + (s.outTotal > s.inTotal ? 'border-success' : 'border-danger') + '">';
+                summaryHtml += '<div class="fw-bold text-dark border-bottom pb-1 mb-1 text-truncate" style="font-size:0.85rem;"><i class="fas fa-user-circle text-secondary me-1"></i> ' + key + '</div>';
+                summaryHtml += '<div class="d-flex justify-content-between" style="font-size:0.8rem;">';
+                summaryHtml += '<span class="text-success" title="Bizim Yaptığımız Satışlar">Satış: <b>' + s.outTotal.toLocaleString('tr-TR', {minimumFractionDigits: 2}) + ' ₺</b></span>';
+                summaryHtml += '<span class="text-danger" title="Bizim Yaptığımız Alımlar">Alım: <b>' + s.inTotal.toLocaleString('tr-TR', {minimumFractionDigits: 2}) + ' ₺</b></span>';
+                summaryHtml += '</div></div></div>';
+            }
+            if(summaryHtml === '') summaryHtml = '<div class="col-12 text-muted small text-center">Henüz karşı taraf (firma/kişi) belirtilmiş bir işlem kaydınız bulunmuyor.</div>';
+            var summaryContainer = document.getElementById('partySummaryContainer');
+            if(summaryContainer) summaryContainer.innerHTML = summaryHtml;
+            // ÖZET HESAPLAMA BİTİŞİ
             var tbody = document.getElementById('txBody');
             if(!tbody) return;
             tbody.innerHTML = '';
@@ -3730,12 +3779,26 @@ function syncVariantTotal() {
         var monthlyData = {};
         var totalRevenue = 0; var totalProfit = 0;
 
-        var currentDateObj = new Date();
-        // Geçmiş ve gelecek toplam 12 ayı menüye ekle
-        for(let i = -1; i <= 11; i++) {
-        let d = new Date(currentDateObj.getFullYear(), currentDateObj.getMonth() - i, 1);
-        let mKey = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, '0');
-        if(!monthlyData[mKey]) monthlyData[mKey] = { itemsSold: 0, revGross: 0, costGross: 0, kdvOut: 0, kdvIn: 0 };
+        // YENİ: Toplam Sabit Giderler (Tüm Zamanlar)
+        var totalGlobalExpenses = 0;
+        for (var exKey in window.monthlyExpenses) {
+            if(Array.isArray(window.monthlyExpenses[exKey])) {
+                window.monthlyExpenses[exKey].forEach(e => totalGlobalExpenses += e.amt);
+            } else if (typeof window.monthlyExpenses[exKey] === 'number') {
+                totalGlobalExpenses += window.monthlyExpenses[exKey];
+            }
+        }
+        var expEl = document.getElementById('dash_total_expenses');
+        if(expEl) expEl.innerText = totalGlobalExpenses.toLocaleString('tr-TR', {minimumFractionDigits: 2}) + " ₺";
+
+        if(!window.currentDashboardYear) window.currentDashboardYear = new Date().getFullYear();
+        var yearLabel = document.getElementById('dashboard_year_label');
+        if(yearLabel) yearLabel.innerText = window.currentDashboardYear;
+
+        // SADECE SEÇİLİ YILIN AYLARINI LİSTELE (Ocak - Aralık)
+        for(let i = 1; i <= 12; i++) {
+            let mKey = window.currentDashboardYear + "-" + String(i).padStart(2, '0');
+            if(!monthlyData[mKey]) monthlyData[mKey] = { itemsSold: 0, revGross: 0, costGross: 0, kdvOut: 0, kdvIn: 0 };
         }
         // --------------------------------------------------------------------------
 
@@ -3778,7 +3841,7 @@ function syncVariantTotal() {
         
         // Sadece ilk renderda select'i doldur (gider ekleyince resetlenmemesi için)
         var shouldFillSelect = (monthSelect && monthSelect.options.length === 0);
-        var sortedMonths = Object.keys(monthlyData).sort().reverse();
+        var sortedMonths = Object.keys(monthlyData).filter(m => m.startsWith(window.currentDashboardYear.toString())).sort().reverse();
         
         sortedMonths.forEach(m => {
             var d = monthlyData[m];
@@ -3876,6 +3939,13 @@ function syncVariantTotal() {
             window.syncExpensesToCloud(); // <-- YENİ EKLENEN KISIM BURASI
         }
     }
+    window.changeDashboardYear = function(dir) {
+        if(!window.currentDashboardYear) window.currentDashboardYear = new Date().getFullYear();
+        window.currentDashboardYear += dir;
+        var monthSelect = document.getElementById('expense_month');
+        if(monthSelect) monthSelect.innerHTML = ""; // Menüyü sıfırla ki yeni yıl dolsun
+        window.renderDashboard();
+    };
         window.syncExpensesToCloud = async function() {
     try {
         var snap = await window.fbGetDocs(window.fbCollection(window.db, "settings"));
