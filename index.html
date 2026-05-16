@@ -1963,10 +1963,19 @@ if(p.variants && p.variants.length > 0) {
             var itemsText = b.items.length + " Çeşit Ürün";
             
             var totalBasketBuyCost = 0;
+            var tooltipLines = []; // YENİ: Baloncuk için ürünleri biriktireceğimiz dizi
+            
             b.items.forEach(function(item) {
                 var p = productList.find(x => x.id == item.pid);
-                if(p) totalBasketBuyCost += (parseFloat(p.buy) || 0) * item.qty;
+                if(p) {
+                    totalBasketBuyCost += (parseFloat(p.buy) || 0) * item.qty;
+                    // YENİ: Ürün adı, varyantı ve adedini listeye ekle
+                    var vText = item.variant ? " (" + item.variant + ")" : "";
+                    tooltipLines.push(item.qty + " Adet - " + p.name + vText);
+                }
             });
+            // YENİ: Listeyi alt alta görünecek şekilde birleştir
+            var tooltipText = tooltipLines.join("&#10;");
 
             var taxRate = parseFloat(b.tax) || 20;
             var commRate = (parseFloat(b.comm) || 0) / 100;
@@ -2031,7 +2040,7 @@ if(p.variants && p.variants.length > 0) {
                     '<td class="ps-4">' +
                         '<div class="fw-bold text-dark" style="font-size: 0.95rem;">' + b.name + '</div>' +
                     '</td>' +
-                    '<td><span class="badge bg-secondary shadow-sm">' + itemsText + '</span></td>' +
+                    '<td><span class="badge bg-secondary shadow-sm" style="cursor: help;" title="' + tooltipText + '">' + itemsText + '</span></td>' +
                     '<td class="text-center">' + boxHtml + '</td>' +
                     '<td class="text-end">' +
                         '<div class="text-danger fw-bold fs-6">' + sellEcom.toFixed(2) + ' ₺</div>' +
