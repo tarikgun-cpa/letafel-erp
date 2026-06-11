@@ -551,15 +551,15 @@
                                     <div class="row g-2">
                                         <div class="col-6">
                                             <label class="small text-muted fw-bold">Kargo (KDV'siz)</label>
-                                            <input type="number" id="basket_ship" class="form-control form-control-sm shadow-none" value="83.93" oninput="renderBasket()">
+                                            <input type="number" id="basket_ship" class="form-control form-control-sm shadow-none" value="138.90" oninput="renderBasket()">
                                         </div>
                                         <div class="col-6">
                                             <label class="small text-muted fw-bold">Komisyon %</label>
-                                            <input type="number" id="basket_comm" class="form-control form-control-sm shadow-none" value="21" oninput="renderBasket()">
+                                            <input type="number" id="basket_comm" class="form-control form-control-sm shadow-none" value="5.99" oninput="renderBasket()">
                                         </div>
                                         <div class="col-6">
                                             <label class="small text-muted fw-bold">Hizmet Bedeli</label>
-                                            <input type="number" id="basket_service" class="form-control form-control-sm shadow-none" value="0" placeholder="KDV'siz" oninput="renderBasket()">
+                                            <input type="number" id="basket_service" class="form-control form-control-sm shadow-none" value="0.49" placeholder="KDV'siz" oninput="renderBasket()">
                                         </div>
                                         <div class="col-6">
                                             <label class="small text-muted fw-bold">KDV Oranı %</label>
@@ -839,15 +839,15 @@
                     <div class="row g-2">
                         <div class="col-4">
                             <label class="small text-muted fw-bold">Kargo (KDV'siz)</label>
-                            <input type="number" id="inp_ship" class="form-control form-control-sm" value="83.93" oninput="runCalcSafe('margin')">
+                            <input type="number" id="inp_ship" class="form-control form-control-sm" value="138.90">
                         </div>
                         <div class="col-4">
                             <label class="small text-muted fw-bold">E-Tic. Komisyon %</label>
-                            <input type="number" id="inp_comm" class="form-control form-control-sm" value="21" oninput="runCalcSafe('margin')">
+                            <input type="number" id="inp_comm" class="form-control form-control-sm" value="5.99" oninput="runCalcSafe('margin')">
                         </div>
                         <div class="col-4">
                             <label class="small text-muted fw-bold">Hizmet Bedeli (₺)</label>
-                            <input type="number" id="inp_service" class="form-control form-control-sm" value="0" placeholder="KDV'siz" oninput="runCalcSafe('margin')">
+                            <input type="number" id="inp_service" class="form-control form-control-sm" value="0.49" placeholder="KDV'siz" oninput="runCalcSafe('margin')">
                         </div>
                         <div class="col-6 mt-2">
                             <label class="small text-muted fw-bold">KDV Oranı %</label>
@@ -1329,11 +1329,11 @@ function importPlatformSettingsCSV(input) {
             function getShipCost(price) {
                 if(price > 0 && price < freeShipLimit) return 0; // Barajın altındaysa kargo maliyeti yok
                 var val = document.getElementById('inp_ship').value;
-                return val === "" ? 83.93 : parseFloat(val);
+                return val === "" ? 138.90 : parseFloat(val);
             }
 
             var shipVal = document.getElementById('inp_ship').value;
-            var shipEx = shipVal === "" ? 83.93 : parseFloat(shipVal);
+            var shipEx = shipVal === "" ? 138.90 : parseFloat(shipVal);
             var serviceEx = parseFloat(document.getElementById('inp_service').value) || 0; 
             
             // YENİ EKLENEN: E-Ticaret Satış Çarpanı (Adet)
@@ -1443,8 +1443,8 @@ function importPlatformSettingsCSV(input) {
             var ids = ['inp_id','inp_name','inp_buy','inp_qty','inp_bar','inp_manuf','inp_whole','inp_imgFile', 'inp_sell_ecom', 'inp_sell_store', 'inp_comp_ty', 'inp_comp_hb', 'inp_comp_amz', 'inp_comp_cs', 'inp_comp_ig'];
             for(var i = 0; i < ids.length; i++) { var elem = document.getElementById(ids[i]); if(elem) elem.value = ""; }
             document.getElementById('variant_container').innerHTML = "";
-            document.getElementById('inp_ship').value = 83.93; document.getElementById('inp_tax').value = 20;
-            document.getElementById('inp_comm').value = 21; document.getElementById('inp_margin_ecom').value = 30; document.getElementById('inp_margin_store').value = 40; document.getElementById('inp_service').value = 0;
+            document.getElementById('inp_ship').value = 138.90; document.getElementById('inp_tax').value = 20;
+            document.getElementById('inp_comm').value = 5.99; document.getElementById('inp_margin_ecom').value = 30; document.getElementById('inp_margin_store').value = 40; document.getElementById('inp_service').value = 0.49;
             document.getElementById('disp_net_ecom').innerText = "Kar: 0.00 ₺";
             document.getElementById('disp_net_store').innerText = "Kar: 0.00 ₺";
             document.getElementById('inp_min_qty').value = 1;
@@ -1632,11 +1632,11 @@ function importPlatformSettingsCSV(input) {
             document.getElementById('inp_buy').value = p.buy || ""; 
             document.getElementById('inp_min_qty').value = p.minQty || 1;
             // 0 değerlerinin silinip yerine varsayılan atamasını engellemek için güvenlik kontrolleri:
-            document.getElementById('inp_ship').value = p.ship !== undefined ? p.ship : 83.93;
+            document.getElementById('inp_ship').value = p.ship !== undefined ? p.ship : 138.90;
             document.getElementById('inp_tax').value = p.tax !== undefined ? p.tax : 20; 
-            document.getElementById('inp_comm').value = p.comm !== undefined ? p.comm : 21; 
+            document.getElementById('inp_comm').value = p.comm !== undefined ? p.comm : 5.99; 
             document.getElementById('inp_margin_ecom').value = p.marginEcom !== undefined ? p.marginEcom : 30; 
-            document.getElementById('inp_service').value = p.service !== undefined ? p.service : 0;
+            document.getElementById('inp_service').value = p.service !== undefined ? p.service : 0.49;
             document.getElementById('inp_margin_store').value = p.marginStore !== undefined ? p.marginStore : 40; 
             document.getElementById('variant_container').innerHTML = "";
 if(p.variants && p.variants.length > 0) {
@@ -1842,8 +1842,8 @@ if(p.variants && p.variants.length > 0) {
                     }
                     if(!isNaN(newPrice) && newPrice > 0 && newPrice !== p.buy) {
                         if(confirm("Bu ürünün alış fiyatını " + newPrice + " TL olarak girdiniz.\nAna ürün kartındaki fiyatı ve satış maliyetlerini güncelleyeyim mi?")) {
-                            document.getElementById('inp_tax').value = p.tax || 20; document.getElementById('inp_ship').value = p.ship || 83.93;
-                            document.getElementById('inp_comm').value = p.comm || 21; document.getElementById('inp_margin_ecom').value = p.marginEcom / 100 || 30;
+                            document.getElementById('inp_tax').value = p.tax || 20; document.getElementById('inp_ship').value = p.ship || 138.90;
+                            document.getElementById('inp_comm').value = p.comm || 5.99; document.getElementById('inp_margin_ecom').value = p.marginEcom / 100 || 30;
                             document.getElementById('inp_margin_store').value = p.marginStore / 100 || 40;
                             var recalc = runCalcSafe('margin', newPrice);
                             p.buy = recalc.buy; p.costEcom = recalc.costEcom; p.costStore = recalc.costStore; p.sellEcom = recalc.sellEcom; p.sellStore = recalc.sellStore; p.netEcom = recalc.netEcom; p.netStore = recalc.netStore;
@@ -2389,7 +2389,7 @@ if(p.variants && p.variants.length > 0) {
             desc: pkg.desc_customer || "",
             box: pkg.desc_box || "", // KUTU BİLGİSİ EKLENDİ
             items: pkg.items.map(item => ({pid: item.pid, qty: item.qty, variant: item.variant || null})),
-            ship: 83.93, comm: 21, tax: 20, service: 0,
+            ship: 138.90, comm: 5.99, tax: 20, service: 0.49,
             sellEcom: parseFloat((totalEcom * 0.90).toFixed(2)), 
             sellStore: parseFloat((totalStore * 0.90).toFixed(2)) 
         };
@@ -2558,12 +2558,12 @@ if(p.variants && p.variants.length > 0) {
         var freeShipLimit = parseFloat(localStorage.getItem('freeShipLimit')) || 350;
         var shipInput = document.getElementById('basket_ship');
         var bShipVal = shipInput ? shipInput.value : "";
-        var shipEx = bShipVal === "" ? 83.93 : parseFloat(bShipVal); 
+        var shipEx = bShipVal === "" ? 138.90 : parseFloat(bShipVal); 
         
         if(sellEcom > 0 && sellEcom < freeShipLimit) {
             shipEx = 0; // Sepet tutarı baraj altındaysa satıcı kargo ödemez
         } else if (sellEcom >= freeShipLimit && shipEx === 0) {
-            shipEx = 83.93; // Tutar barajı geçtiğinde ve kargo 0'da takılı kaldıysa standart kargoyu geri ekle
+            shipEx = 138.90; // Tutar barajı geçtiğinde ve kargo 0'da takılı kaldıysa standart kargoyu geri ekle
         }
         
         // Hesaplanan kargoyu ekrandaki kutucuğa yansıt
@@ -2768,10 +2768,10 @@ if(p.variants && p.variants.length > 0) {
                     var dummyItem = { 
                         id: Date.now() + i, cat: cols[0].trim(), name: cols[1].trim(), bar: cols[2].trim(), 
                         manuf: cols[3].trim(), whole: cols[4].trim(), qty: cols[5].trim(), 
-                        buy: buyPrice, ship: 83.93, tax: 20, comm: 21, marginEcom: 30, marginStore: 40, pub: true, img: "",
+                        buy: buyPrice, ship: 138.90, tax: 20, comm: 5.99, marginEcom: 30, marginStore: 40, pub: true, img: "", service: 0.49,
                         comp_ty: null, comp_hb: null, comp_amz: null, comp_cs: null, comp_ig: null
                     };
-                    var tf = 1.20; var it = 0.20/1.20; var cm = 0.21;
+                    var tf = 1.20; var it = 0.20/1.20; var cm = 0.0599; dummyItem.service = 0.49; dummyItem.costEcom += (0.49 * tf); // Shopier Hizmet Bedeli
                     dummyItem.shipInc = dummyItem.ship * tf; dummyItem.costEcom = dummyItem.buy + dummyItem.shipInc;
                     var ve = (dummyItem.buy - (dummyItem.buy/tf)) + (dummyItem.shipInc - dummyItem.ship);
                     dummyItem.sellEcom = (dummyItem.costEcom * 1.30 - ve) / (1 - cm - it); dummyItem.commAmount = dummyItem.sellEcom * cm;
