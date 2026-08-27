@@ -1852,11 +1852,9 @@ if(p.variants && p.variants.length > 0) {
                         }
                     }
                 } else {
-                    // SATIŞ (OUT) İŞLEMİ
                     if(mevcut < qty) { alert("Stok yetersiz! İşlem yapılamaz."); return; }
                     p.qty = mevcut - qty;
                     
-                    // YENİ: Seçili varyantın stoğunu da düş
                     if(selectedVariant && p.variants) {
                         var vObj = p.variants.find(v => v.name === selectedVariant);
                         if(vObj) {
@@ -1865,7 +1863,6 @@ if(p.variants && p.variants.length > 0) {
                     }
                 }
 
-                // İşlemi deftere yazarken "variant" bilgisini de ekliyoruz
                 var tx = { 
                     id: Date.now(), 
                     type: type, 
@@ -1878,28 +1875,32 @@ if(p.variants && p.variants.length > 0) {
                     variant: selectedVariant 
                 };
                 
-                txList.push(tx); 
-                saveSafeData();
-                
-                // İşlemi Firebase bulutuna da kaydet
+                // SADECE BULUTA KAYDET, SONRA EKRANI YENİLE
                 if(window.fbAddDoc && window.db) {
                     window.fbAddDoc(window.fbCollection(window.db, "transactions"), tx)
                     .then(async () => { 
-                        // YENİ: Düşülen/Eklenen stoğu ürün kartına (Buluta) işle
                         if(p.fbId) {
                             await window.fbUpdateDoc(window.fbDoc(window.db, "products", p.fbId), p);
                         }
-                        window.fetchFromFirestore(); 
+                        // Defteri buluttan geri çek
+                        await window.fetchFromFirestore(); 
+                        
+                        document.getElementById('tx_qty').value = "";
+                        document.getElementById('tx_party').value = "";
+                        document.getElementById('tx_desc').value = "";
+                        document.getElementById('tx_buy_price').value = "";
+                        var msg = "İşlem Buluta Yazıldı! Yeni Stok: " + p.qty;
+                        if(isPriceUpdated) msg += "\nFiyatlar ve maliyetler güncellendi.";
+                        checkEntrepreneurLimit();
+                        alert(msg);
                     }) 
-                    .catch(e => console.error("Buluta işlem kaydedilemedi:", e));
+                    .catch(e => {
+                        console.error(e);
+                        alert("Buluta işlem kaydedilemedi: " + e.message);
+                    });
+                } else {
+                    alert("Firebase bağlantısı yok!");
                 }
-                
-                document.getElementById('tx_qty').value = "";
-                document.getElementById('tx_party').value = "";
-                document.getElementById('tx_desc').value = "";
-                document.getElementById('tx_buy_price').value = "";
-                renderTable(); renderTxTable(); updateSelects();
-                alert("İşlem başarıyla kaydedildi!");
             }
         } catch(e) { alert("Kaydedilirken hata oluştu."); }
     }
@@ -1912,18 +1913,12 @@ if(p.variants && p.variants.length > 0) {
                 if(txIndex > -1) {
                     var tx = txList[txIndex];
                     
-                    // YENİ EKLENEN: İşlemi buluttan sil
-                    if(tx.fbId && window.fbDeleteDoc && window.db) {
-                        window.fbDeleteDoc(window.fbDoc(window.db, "transactions", tx.fbId)).catch(e=>console.log(e));
-                    }
-
                     for(var j=0; j<productList.length; j++) {
                         if(productList[j] && productList[j].id == tx.pid) {
                             var mevcut = parseInt(productList[j].qty) || 0;
                             if(tx.type === 'IN') productList[j].qty = mevcut - tx.qty; 
                             if(tx.type === 'OUT') productList[j].qty = mevcut + tx.qty;
                             
-                            // Varyant iptali
                             if(tx.variant && productList[j].variants) {
                                 var vObj = productList[j].variants.find(v => v.name === tx.variant);
                                 if(vObj) {
@@ -1932,19 +1927,104 @@ if(p.variants && p.variants.length > 0) {
                                 }
                             }
                             
-                            // YENİ: İade edilen stoğu buluta kaydet
+                            // Ürün stoğunu buluta kaydet
                             if(productList[j].fbId && window.fbUpdateDoc && window.db) {
                                 window.fbUpdateDoc(window.fbDoc(window.db, "products", productList[j].fbId), productList[j]);
                             }
                             break;
                         }
                     }
-                    txList.splice(txIndex, 1);
-                    saveSafeData(); updateSelects(); renderTable(); renderTxTable();
+                    
+                    // İşlemi Buluttan Sil ve Ekranı Yenile
+                    if(tx.fbId && window.fbDeleteDoc && window.db) {
+                        window.fbDeleteDoc(window.fbDoc(window.db, "transactions", tx.fbId))
+                        .then(() => {
+                            window.fetchFromFirestore();
+                            alert("İşlem silindi ve stok iade edildi.");
+                        }).catch(e=>console.log(e));
+                    }
                 }
             } catch(e) {}
         }
     }
+
+    function confirmSellBasket() {
+        var date = document.getElementById('sell_basket_date').value;
+        var channel = document.getElementById('sell_basket_channel').value;
+        var party = document.getElementById('sell_basket_party').value;
+        var desc = document.getElementById('sell_basket_desc').value;
+        var actualTotalPrice = parseFloat(document.getElementById('sell_basket_price').value);
+        
+        if(!date) { alert("Lütfen tarih seçin."); return; }
+        if(isNaN(actualTotalPrice) || actualTotalPrice < 0) { alert("Geçerli bir satış tutarı girin."); return; }
+
+        var b = savedBaskets.find(function(x) { return x.id == currentSellingBasketId; });
+        if(!b) return;
+
+        var baseTotal = 0;
+        b.items.forEach(function(item) {
+            var p = productList.find(x => x.id == item.pid);
+            if(p) {
+                var pMinQty = parseInt(p.minQty) || 1;
+                var pPrice = channel === 'E-TİCARET' ? ((parseFloat(p.sellEcom) || 0) / pMinQty || parseFloat(p.buy) || 0) : (parseFloat(p.sellStore) || parseFloat(p.buy) || 0);
+                baseTotal += (pPrice * item.qty);
+            }
+        });
+
+        // Tüm asenkron kayıt işlemlerini toplayacağız
+        var promises = [];
+
+        b.items.forEach(function(item) {
+            var pIndex = productList.findIndex(function(x) { return x.id == item.pid; });
+            if(pIndex > -1) {
+                var p = productList[pIndex];
+                p.qty = (parseInt(p.qty) || 0) - item.qty; 
+                
+                if(item.variant && p.variants) {
+                    var vObj = p.variants.find(v => v.name === item.variant);
+                    if(vObj) vObj.qty = Math.max(0, parseInt(vObj.qty) - item.qty);
+                }
+
+                var pMinQty = parseInt(p.minQty) || 1;
+                var pPrice = channel === 'E-TİCARET' ? ((parseFloat(p.sellEcom) || 0) / pMinQty || parseFloat(p.buy) || 0) : (parseFloat(p.sellStore) || parseFloat(p.buy) || 0);
+                var weight = baseTotal > 0 ? ((pPrice * item.qty) / baseTotal) : (1 / b.items.length);
+                var allocatedTotalPrice = actualTotalPrice * weight;
+                var unitSalePrice = allocatedTotalPrice / item.qty; 
+
+                var vText = item.variant ? " (" + item.variant + ")" : "";
+                var tx = { 
+                    id: Date.now() + Math.floor(Math.random()*10000), 
+                    type: 'OUT', 
+                    date: date, 
+                    pid: p.id, 
+                    qty: item.qty, 
+                    party: party, 
+                    desc: "Sepet: [" + b.name + "]" + vText + " " + channel + " - " + desc, 
+                    price: parseFloat(unitSalePrice.toFixed(2)), 
+                    variant: item.variant 
+                };
+                
+                // Satışı ve Stok düşüşünü buluta göndermek için kuyruğa ekle
+                if(window.fbAddDoc && window.db) {
+                    promises.push(window.fbAddDoc(window.fbCollection(window.db, "transactions"), tx));
+                }
+                if(p.fbId && window.fbUpdateDoc && window.db) {
+                    promises.push(window.fbUpdateDoc(window.fbDoc(window.db, "products", p.fbId), p));
+                }
+            }
+        });
+
+        // Bütün kayıtlar bittikten sonra sistemi yenile
+        Promise.all(promises).then(() => {
+            window.fetchFromFirestore();
+            if(sellBasketModalInstance) sellBasketModalInstance.hide();
+            checkEntrepreneurLimit();
+            alert("Paket satışı başarılı!\nFiyatlar birim bazında orantılı olarak bölündü ve BULUTA işlendi.");
+        }).catch(e => {
+            alert("Satış buluta işlenirken hata oluştu: " + e.message);
+        });
+    }
+
     // ==========================================
     // YENİ: PAKET / SEPET MODÜLÜ İŞLEMLERİ V32
     // ==========================================
@@ -2668,79 +2748,6 @@ if(p.variants && p.variants.length > 0) {
             var suggested = channel === 'E-TİCARET' ? b.sellEcom : b.sellStore;
             document.getElementById('sell_basket_price').value = suggested || 0;
         }
-    }
-
-    function confirmSellBasket() {
-        var date = document.getElementById('sell_basket_date').value;
-        var channel = document.getElementById('sell_basket_channel').value;
-        var party = document.getElementById('sell_basket_party').value;
-        var desc = document.getElementById('sell_basket_desc').value;
-        var actualTotalPrice = parseFloat(document.getElementById('sell_basket_price').value);
-        
-        if(!date) { alert("Lütfen tarih seçin."); return; }
-        if(isNaN(actualTotalPrice) || actualTotalPrice < 0) { alert("Geçerli bir satış tutarı girin."); return; }
-
-        var b = savedBaskets.find(function(x) { return x.id == currentSellingBasketId; });
-        if(!b) return;
-
-        // 1. Orijinal toplam değeri bul (Orantı kurmak için)
-        var baseTotal = 0;
-        b.items.forEach(function(item) {
-            var p = productList.find(x => x.id == item.pid);
-            if(p) {
-                var pMinQty = parseInt(p.minQty) || 1;
-                var pPrice = channel === 'E-TİCARET' ? ((parseFloat(p.sellEcom) || 0) / pMinQty || parseFloat(p.buy) || 0) : (parseFloat(p.sellStore) || parseFloat(p.buy) || 0);
-                baseTotal += (pPrice * item.qty);
-            }
-        });
-
-        // 2. Ürünleri düş ve fiyatı paylaştırarak deftere yaz
-        b.items.forEach(function(item) {
-            var pIndex = productList.findIndex(function(x) { return x.id == item.pid; });
-            if(pIndex > -1) {
-                var p = productList[pIndex];
-                p.qty = (parseInt(p.qty) || 0) - item.qty; 
-                
-                if(item.variant && p.variants) {
-                    var vObj = p.variants.find(v => v.name === item.variant);
-                    if(vObj) vObj.qty = Math.max(0, parseInt(vObj.qty) - item.qty);
-                }
-
-                // Orantısal Fiyat Hesaplama
-                var pMinQty = parseInt(p.minQty) || 1;
-                var pPrice = channel === 'E-TİCARET' ? ((parseFloat(p.sellEcom) || 0) / pMinQty || parseFloat(p.buy) || 0) : (parseFloat(p.sellStore) || parseFloat(p.buy) || 0);
-                var weight = baseTotal > 0 ? ((pPrice * item.qty) / baseTotal) : (1 / b.items.length);
-                var allocatedTotalPrice = actualTotalPrice * weight;
-                var unitSalePrice = allocatedTotalPrice / item.qty; // Birim fiyata indirge
-
-                var vText = item.variant ? " (" + item.variant + ")" : "";
-                var tx = { 
-                    id: Date.now() + Math.floor(Math.random()*10000), 
-                    type: 'OUT', 
-                    date: date, 
-                    pid: p.id, 
-                    qty: item.qty, 
-                    party: party, 
-                    desc: "Sepet: [" + b.name + "]" + vText + " " + channel + " - " + desc, 
-                    price: parseFloat(unitSalePrice.toFixed(2)), 
-                    variant: item.variant 
-                };
-                txList.push(tx);
-                
-                // YENİ: Sepet satışını ve stok düşüşünü buluta kaydet
-                if(window.fbAddDoc && window.db) {
-                    window.fbAddDoc(window.fbCollection(window.db, "transactions"), tx);
-                }
-                if(p.fbId && window.fbUpdateDoc && window.db) {
-                    window.fbUpdateDoc(window.fbDoc(window.db, "products", p.fbId), p);
-                }
-            }
-        });
-
-        saveSafeData(); renderTable(); renderTxTable(); updateSelects(); 
-        if(sellBasketModalInstance) sellBasketModalInstance.hide();
-        checkEntrepreneurLimit();
-        alert("Satış başarılı!\nFiyatlar birim bazında orantılı olarak bölündü ve deftere işlendi.");
     }
 
     // ... (EXCEL VE PDF FONKSİYONLARI BURADA KORUNMUŞTUR) ...
@@ -3638,10 +3645,11 @@ function syncVariantTotal() {
   window.fbOnAuthChanged = onAuthStateChanged;
   window.fbSignOut = signOut;
 
-  // --- 1. VERİLERİ FIREBASE'DEN ÇEKME FONKSİYONU ---
   window.fetchFromFirestore = async function() {
     try {
-        console.log("Veriler çekiliyor...");
+        console.log("Veriler buluttan çekiliyor...");
+        
+        // 1. Ürünleri Çek
         const querySnapshot = await window.fbGetDocs(window.fbCollection(window.db, "products"));
         productList = [];
         querySnapshot.forEach((doc) => {
@@ -3650,6 +3658,7 @@ function syncVariantTotal() {
             productList.push(data);
         });
         
+        // 2. Sepetleri Çek
         const basketSnapshot = await window.fbGetDocs(window.fbCollection(window.db, "baskets"));
         savedBaskets = [];
         basketSnapshot.forEach((doc) => {
@@ -3658,7 +3667,16 @@ function syncVariantTotal() {
             savedBaskets.push(data);
         });
 
-        // AYARLARI (LOGO VE GİDERLERİ) BULUTTAN ÇEKME
+        // 3. İşlemleri (Defteri) Çek [YENİ EKLENEN KISIM]
+        const txSnapshot = await window.fbGetDocs(window.fbCollection(window.db, "transactions"));
+        txList = [];
+        txSnapshot.forEach((doc) => {
+            let data = doc.data();
+            data.fbId = doc.id;
+            txList.push(data);
+        });
+
+        // 4. AYARLARI (LOGO VE GİDERLERİ) BULUTTAN ÇEKME
         try {
             const settingsDoc = await window.fbGetDocs(window.fbCollection(window.db, "settings"));
             settingsDoc.forEach(doc => {
@@ -3672,7 +3690,6 @@ function syncVariantTotal() {
                         document.getElementById('company-logo').src = doc.data().catalog;
                     }
                 }
-                // YENİ EKLENEN: Giderleri buluttan çek
                 if(doc.data().type === 'expenses') {
                     if(doc.data().data) {
                         window.monthlyExpenses = JSON.parse(doc.data().data);
@@ -3682,11 +3699,15 @@ function syncVariantTotal() {
             });
         } catch(e) {}
 
+        // Arayüzü Tetikle
         renderTable();
         updateSelects();
         updateBasketSelect();
         renderSavedBaskets(); 
-        console.log("Yükleme tamamlandı.");
+        renderTxTable(); // [YENİ EKLENEN KISIM] Defter tablosunu ekrana çiz
+        if(window.renderDashboard) window.renderDashboard(); // [YENİ EKLENEN KISIM] İşlemler geldiği için finans ekranını yenile
+
+        console.log("Bulut verileri başarıyla yüklendi.");
     } catch (error) {
         console.error("Veri çekme hatası:", error);
     }
