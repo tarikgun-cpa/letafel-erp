@@ -4588,7 +4588,7 @@ function syncVariantTotal() {
         } catch(e) { alert("Silme Hatası: " + e.message); }
     };
 
-    // 3. YENİ: GEÇMİŞ FATURALARI TOPLU OLARAK BİRLEŞTİRİP YAZDIRAN FONKSİYON
+    // 1-) GEÇMİŞ FATURALARI BİRLEŞTİRİP ÖNİZLEME/YAZDIRMA EKRANINDA AÇAN FONKSİYON
     window.printHistoricalInvoice = function(fbId) {
         var baseTx = txList.find(x => x.fbId === fbId);
         if(!baseTx) return;
@@ -4603,42 +4603,41 @@ function syncVariantTotal() {
             return str.replace(/[çğıöşüÇĞİÖŞÜ]/g, m => map[m]); 
         }
 
-        // Fatura Numarasını Çıkar
+        // Fatura numarasını veya faturasız işlemi tespit edip aynı gruptaki TÜM ÜRÜNLERİ bulma
         var fNoMatch = baseTx.desc.match(/Fatura:\s([^|]+)/);
-        var fNo = fNoMatch ? fNoMatch[1].trim() : "Faturasiz_Islem";
-        
+        var fNo = fNoMatch ? fNoMatch[1].trim() : "";
         var invoiceItems = [];
-        if(fNo !== "Faturasiz_Islem") {
-            // Aynı faturaya ait tüm kalemleri topla
+        
+        if (fNo) {
             invoiceItems = txList.filter(t => t.party === baseTx.party && t.date === baseTx.date && t.desc.includes("Fatura: " + fNo));
         } else {
-            // Faturasız bir işlemse sadece kendisini yazdır
-            invoiceItems = [baseTx];
+            invoiceItems = txList.filter(t => t.party === baseTx.party && t.date === baseTx.date && t.desc.includes("Faturasız İşlem"));
         }
         
-        var isAlim = baseTx.type.includes('ALIM');
-        var baslik = isAlim ? "ALIM FATURASI / STOK GIRISI" : "SATIS FATURASI / STOK CIKISI";
-        var baslikRenk = isAlim ? [46, 125, 50] : [217, 83, 79];
+        var isAlimBase = baseTx.type.includes('ALIM');
+        invoiceItems = invoiceItems.filter(t => t.type.includes('ALIM') === isAlimBase);
+
+        var baslik = isAlimBase ? "ALIM FATURASI / STOK GIRISI" : "SATIS FATURASI / STOK CIKISI";
+        var baslikRenk = isAlimBase ? [46, 125, 50] : [217, 83, 79];
 
         doc.setFillColor(baslikRenk[0], baslikRenk[1], baslikRenk[2]);
         doc.rect(0, 0, 210, 30, 'F');
         doc.setTextColor(255, 255, 255);
-        doc.setFontSize(20);
+        doc.setFontSize(18);
         doc.text(toEn(baslik), 14, 20);
 
         var logoSrc = document.getElementById('view_main_logo').src;
         if(logoSrc && logoSrc.startsWith('data:image')) {
-            doc.addImage(logoSrc, 'PNG', 170, 4, 22, 22);
+            doc.addImage(logoSrc, 'PNG', 175, 4, 22, 22);
         }
 
-        doc.setTextColor(50, 50, 50);
-        doc.setFontSize(12);
-        doc.setFont("times", "bold");
+        doc.setTextColor(60, 60, 60);
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
         doc.text("Cari Hesap: " + toEn(baseTx.party || 'GENEL CARI'), 14, 40);
-        doc.setFont("times", "normal");
-        doc.setFontSize(10);
-        doc.text("Tarih: " + baseTx.date, 14, 46);
-        doc.text("Belge No: " + toEn(fNo), 14, 52);
+        doc.setFont("helvetica", "normal");
+        doc.text("Islem Tarihi: " + baseTx.date, 14, 46);
+        doc.text("Belge No: " + toEn(fNo || 'Belirtilmedi'), 14, 52);
 
         var rows = [];
         var totalTutar = 0;
@@ -4666,27 +4665,33 @@ function syncVariantTotal() {
             startY: 60, 
             head: [['Tur', 'Aciklama / Urun', 'Adet', 'Birim Fiyat', 'Toplam']], 
             body: rows, 
-            styles: { fontSize: 10, font: "times", cellPadding: 4, overflow: 'linebreak' }, // Uzun ürün adlarını alt satıra atar
+            theme: 'striped',
+            styles: { fontSize: 9, font: "helvetica", cellPadding: 4, overflow: 'linebreak' }, 
             headStyles: { fillColor: baslikRenk, textColor: 255, fontStyle: "bold" },
-            alternateRowStyles: { fillColor: [250, 250, 248] },
             columnStyles: {
                 0: { cellWidth: 20 },
-                1: { cellWidth: 90 }, // Açıklama kısmı için geniş alan
+                1: { cellWidth: 85 }, 
                 2: { cellWidth: 20, halign: 'center' }, 
-                3: { cellWidth: 25, halign: 'right' },
-                4: { cellWidth: 27, halign: 'right' }
+                3: { cellWidth: 27, halign: 'right' },
+                4: { cellWidth: 30, halign: 'right' }
             }
         });
 
-        var finalY = doc.lastAutoTable.finalY + 10;
-        doc.setFont("times", "bold");
-        doc.setFontSize(14);
-        doc.text("GENEL TOPLAM: " + totalTutar.toLocaleString('tr-TR',{minimumFractionDigits:2}) + " TL", 130, finalY);
+        var finalY = doc.lastAutoTable.finalY + 15;
+        doc.setFillColor(245, 245, 245);
+        doc.rect(120, finalY - 8, 75, 12, 'F');
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.setTextColor(0, 0, 0);
+        doc.text("GENEL TOPLAM: " + totalTutar.toLocaleString('tr-TR',{minimumFractionDigits:2}) + " TL", 125, finalY);
 
-        doc.save(toEn(baseTx.party || 'Fatura').replace(/\s+/g, '_') + "_Fatura_" + baseTx.date + ".pdf");
+        // DİREKT İNDİRME YERİNE YENİ SEKMEYE YAZDIRMA (ÖNİZLEME) OLARAK AÇAR
+        var blobUrl = URL.createObjectURL(doc.output("blob"));
+        window.open(blobUrl, '_blank');
     };
 
-    // 4. CARİ EKSTRE PDF YAZDIRMA (TAŞMALARI DÜZELTİLMİŞ HALİ)
+
+    // 2-) CARİ EKSTRE YAZDIRMA (YEPYENİ MODERN VE KESİNTİSİZ TASARIM)
     window.printCariExtreDirect = function(partyName) {
         var jsPDFObj = window.jspdf ? window.jspdf.jsPDF : (window.jsPDF || null);
         if (!jsPDFObj) { alert("PDF Kütüphanesi yüklenemedi."); return; }
@@ -4698,28 +4703,29 @@ function syncVariantTotal() {
             return str.replace(/[çğıöşüÇĞİÖŞÜ]/g, m => map[m]); 
         }
         
-        doc.setFillColor(10, 61, 50); // var(--brand-green)
-        doc.rect(0, 0, 210, 30, 'F');
-        doc.setTextColor(255, 255, 255);
+        // Modern Gri-Yeşil Başlık
+        doc.setFillColor(235, 245, 240); 
+        doc.rect(0, 0, 210, 35, 'F');
+        doc.setTextColor(10, 61, 50);
         doc.setFontSize(22);
-        doc.text("CARI HESAP EKSTRESI", 14, 20);
+        doc.setFont("helvetica", "bold");
+        doc.text("CARI HESAP EKSTRESI", 14, 22);
 
         var logoSrc = document.getElementById('view_main_logo').src;
         if(logoSrc && logoSrc.startsWith('data:image')) {
-            doc.addImage(logoSrc, 'PNG', 170, 4, 22, 22);
+            doc.addImage(logoSrc, 'PNG', 170, 6, 23, 23);
         }
 
-        doc.setTextColor(50, 50, 50);
-        doc.setFontSize(14);
-        doc.setFont("times", "bold");
-        doc.text("Firma / Kisi: " + toEn(partyName), 14, 40);
-        
+        doc.setTextColor(40, 40, 40);
+        doc.setFontSize(12);
+        doc.text("Firma / Kisi: " + toEn(partyName), 14, 45);
+        doc.setFont("helvetica", "normal");
         doc.setFontSize(10);
-        doc.setFont("times", "normal");
-        doc.text("Rapor Tarihi: " + new Date().toLocaleDateString('tr-TR'), 14, 46);
+        doc.text("Rapor Tarihi: " + new Date().toLocaleDateString('tr-TR'), 14, 52);
+        doc.setDrawColor(200, 200, 200);
+        doc.line(14, 56, 196, 56);
         
         var borcT = 0, alacakT = 0;
-        // Eskiden yeniye sıralıyoruz
         var sorted = txList.filter(t => t.party && t.party.toUpperCase() === partyName).sort((a,b) => new Date(a.date) - new Date(b.date)); 
         var rows = [];
 
@@ -4728,10 +4734,10 @@ function syncVariantTotal() {
             if(t.type.includes('STOK')) amt *= (parseInt(t.qty)||1);
             
             var tName = "Islem"; 
-            if(t.type === 'STOK_SATIS' || t.type === 'HIZMET_SATIS') { tName = 'Satis Faturasi'; borcT += amt; }
-            else if(t.type === 'STOK_ALIM' || t.type === 'HIZMET_ALIM') { tName = 'Alim Faturasi'; alacakT += amt; }
-            else if(t.type === 'TAHSILAT_AL') { tName = 'Tahsilat (+Kasa)'; alacakT += amt; }
-            else if(t.type === 'ODEME_YAP') { tName = 'Odeme (-Kasa)'; borcT += amt; }
+            if(t.type === 'STOK_SATIS' || t.type === 'HIZMET_SATIS') { tName = 'Satis Fat.'; borcT += amt; }
+            else if(t.type === 'STOK_ALIM' || t.type === 'HIZMET_ALIM') { tName = 'Alim Fat.'; alacakT += amt; }
+            else if(t.type === 'TAHSILAT_AL') { tName = 'Tahsilat (+)'; alacakT += amt; }
+            else if(t.type === 'ODEME_YAP') { tName = 'Odeme (-)'; borcT += amt; }
 
             var descText = t.desc; 
             if(t.type.includes('STOK')) { 
@@ -4739,7 +4745,6 @@ function syncVariantTotal() {
                 descText += pr ? ` (${t.qty}x ${pr.name})` : ''; 
             }
             
-            // Satırları İngilizce karaktere çevirerek jsPDF çakışmasını engelliyoruz
             rows.push([t.date, tName, toEn(descText), amt.toLocaleString('tr-TR',{minimumFractionDigits:2}) + " TL"]);
         });
 
@@ -4747,16 +4752,16 @@ function syncVariantTotal() {
         var bColor = bakiye >= 0 ? "Alacakli (Bize Borcu Var)" : "Borclu (Bizim Borcumuz)";
         
         doc.autoTable({ 
-            startY: 52, 
-            head: [['Tarih', 'Islem Turu', 'Aciklama / Belge', 'Tutar']], 
+            startY: 62, 
+            head: [['Tarih', 'Islem Turu', 'Belge / Aciklama (Urun)', 'Tutar']], 
             body: rows, 
-            styles: { fontSize: 9, font: "times", cellPadding: 4, overflow: 'linebreak' }, // overflow: 'linebreak' ile metin aşağı atar (taşma yapmaz)
+            theme: 'grid',
+            styles: { fontSize: 9, font: "helvetica", cellPadding: 4, overflow: 'linebreak' }, 
             headStyles: { fillColor: [10, 61, 50], textColor: 255, fontStyle: "bold" },
-            alternateRowStyles: { fillColor: [250, 250, 248] },
             columnStyles: {
-                0: { cellWidth: 22 },
-                1: { cellWidth: 28 },
-                2: { cellWidth: 100 }, // Açıklama sütununa sabit tam sığacak genişlik verdik (Taşmayı önler)
+                0: { cellWidth: 23 },
+                1: { cellWidth: 27 },
+                2: { cellWidth: 100 }, 
                 3: { cellWidth: 32, halign: 'right' }
             }
         });
@@ -4764,25 +4769,108 @@ function syncVariantTotal() {
         var finalY = doc.lastAutoTable.finalY + 15;
         
         doc.setDrawColor(10, 61, 50);
-        doc.setFillColor(245, 248, 246);
+        doc.setFillColor(250, 252, 250);
         doc.roundedRect(14, finalY, 182, 35, 3, 3, 'FD');
 
         doc.setTextColor(10, 61, 50);
-        doc.setFont("times", "bold");
+        doc.setFont("helvetica", "bold");
         doc.setFontSize(12);
-        doc.text("EKSTRE OZETI", 20, finalY + 8);
+        doc.text("FINANSAL OZET", 20, finalY + 8);
+
+        doc.setTextColor(60, 60, 60);
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.text("Toplam Satislar (Bize Borcu): " + borcT.toLocaleString('tr-TR',{minimumFractionDigits:2}) + " TL", 20, finalY + 16);
+        doc.text("Toplam Alimlar (Bizim Borcumuz): " + alacakT.toLocaleString('tr-TR',{minimumFractionDigits:2}) + " TL", 20, finalY + 22);
+        
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        if(bakiye >= 0) doc.setTextColor(46, 125, 50); else doc.setTextColor(217, 83, 79);
+        doc.text("NET BAKIYE [" + bColor + "]: " + Math.abs(bakiye).toLocaleString('tr-TR',{minimumFractionDigits:2}) + " TL", 20, finalY + 30);
+
+        // DİREKT İNDİRME YERİNE YENİ SEKMEYE YAZDIRMA (ÖNİZLEME) OLARAK AÇAR
+        var blobUrl = URL.createObjectURL(doc.output("blob"));
+        window.open(blobUrl, '_blank');
+    };
+
+
+    // 3-) YENİ FATURA GİRİŞİNDEKİ "YAZDIR" BUTONU FONKSİYONU
+    window.printCurrentInvoice = function() {
+        if(invoiceCart.length === 0) { alert("Yazdırılacak kalem bulunmuyor. Önce faturaya ürün ekleyin."); return; }
+        
+        var jsPDFObj = window.jspdf ? window.jspdf.jsPDF : (window.jsPDF || null);
+        if (!jsPDFObj) { alert("PDF Kütüphanesi yüklenemedi."); return; }
+        var doc = new jsPDFObj();
+        
+        function toEn(str) { 
+            if(!str) return ''; 
+            var map = {'ç':'c','ğ':'g','ı':'i','ö':'o','ş':'s','ü':'u','Ç':'C','Ğ':'G','İ':'I','Ö':'O','Ş':'S','Ü':'U'}; 
+            return str.replace(/[çğıöşüÇĞİÖŞÜ]/g, m => map[m]); 
+        }
+
+        var invType = document.getElementById('inv_type_flag').value;
+        var date = document.getElementById('inv_date').value || new Date().toLocaleDateString('tr-TR');
+        var fNo = document.getElementById('inv_no').value.trim() || "Belirtilmedi";
+        var party = document.getElementById('inv_party').value.trim().toUpperCase() || "GENEL CARİ";
+
+        var baslik = invType === 'IN' ? "ALIM FATURASI / STOK GIRISI" : "SATIS FATURASI / STOK CIKISI";
+        var baslikRenk = invType === 'IN' ? [46, 125, 50] : [217, 83, 79]; 
+
+        doc.setFillColor(baslikRenk[0], baslikRenk[1], baslikRenk[2]);
+        doc.rect(0, 0, 210, 30, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(20);
+        doc.setFont("helvetica", "bold");
+        doc.text(toEn(baslik), 14, 20);
+
+        var logoSrc = document.getElementById('view_main_logo').src;
+        if(logoSrc && logoSrc.startsWith('data:image')) { doc.addImage(logoSrc, 'PNG', 175, 4, 22, 22); }
 
         doc.setTextColor(50, 50, 50);
-        doc.setFontSize(10);
-        doc.setFont("times", "normal");
-        doc.text("Toplam Satislar / Bize Borcu: " + borcT.toLocaleString('tr-TR',{minimumFractionDigits:2}) + " TL", 20, finalY + 16);
-        doc.text("Toplam Alimlar / Bizim Borcumuz: " + alacakT.toLocaleString('tr-TR',{minimumFractionDigits:2}) + " TL", 20, finalY + 22);
-        
-        doc.setFont("times", "bold");
-        if(bakiye >= 0) doc.setTextColor(92, 184, 92); else doc.setTextColor(217, 83, 79);
-        doc.text("NET DURUM (" + bColor + "): " + Math.abs(bakiye).toLocaleString('tr-TR',{minimumFractionDigits:2}) + " TL", 20, finalY + 30);
+        doc.setFontSize(11);
+        doc.text("Cari Hesap: " + toEn(party), 14, 40);
+        doc.setFont("helvetica", "normal");
+        doc.text("Tarih: " + date, 14, 46);
+        doc.text("Belge No: " + toEn(fNo), 14, 52);
 
-        doc.save(toEn(partyName).replace(/\s+/g, '_') + "_Ekstre.pdf");
+        var rows = [];
+        var totalTutar = 0;
+
+        invoiceCart.forEach(item => {
+            var nDisp = item.name + (item.variant ? ` (Varyant: ${item.variant})` : '');
+            var lineTotal = item.qty * item.price;
+            totalTutar += lineTotal;
+            var typeStr = item.type === 'STOK' ? 'Stok' : 'Hizmet';
+            rows.push([typeStr, toEn(nDisp), item.qty, item.price.toLocaleString('tr-TR',{minimumFractionDigits:2}) + " TL", lineTotal.toLocaleString('tr-TR',{minimumFractionDigits:2}) + " TL"]);
+        });
+
+        doc.autoTable({ 
+            startY: 60, 
+            head: [['Tur', 'Aciklama / Urun', 'Adet', 'Birim Fiyat', 'Toplam']], 
+            body: rows, 
+            theme: 'striped',
+            styles: { fontSize: 9, font: "helvetica", cellPadding: 4, overflow: 'linebreak' },
+            headStyles: { fillColor: baslikRenk, textColor: 255, fontStyle: "bold" },
+            columnStyles: {
+                0: { cellWidth: 20 },
+                1: { cellWidth: 85 },
+                2: { cellWidth: 20, halign: 'center' }, 
+                3: { cellWidth: 27, halign: 'right' },
+                4: { cellWidth: 30, halign: 'right' }
+            }
+        });
+
+        var finalY = doc.lastAutoTable.finalY + 15;
+        doc.setFillColor(245, 245, 245);
+        doc.rect(120, finalY - 8, 75, 12, 'F');
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.setTextColor(0, 0, 0);
+        doc.text("GENEL TOPLAM: " + totalTutar.toLocaleString('tr-TR',{minimumFractionDigits:2}) + " TL", 125, finalY);
+
+        // DİREKT İNDİRME YERİNE YENİ SEKMEYE YAZDIRMA (ÖNİZLEME) OLARAK AÇAR
+        var blobUrl = URL.createObjectURL(doc.output("blob"));
+        window.open(blobUrl, '_blank');
     };
 
 </script>
