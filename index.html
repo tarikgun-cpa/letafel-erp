@@ -351,18 +351,33 @@
     </div>
 
     <div id="mod-islem" class="app-module">
-        <!-- 3'lü Sekme Yapısı -->
-        <ul class="nav nav-pills mb-4 justify-content-center border-bottom pb-3 gap-2" id="islemTabs">
-            <li class="nav-item"><a class="nav-link active fw-bold text-success" style="background:#eaf8ea; cursor:pointer;" id="tab-alim-link" onclick="switchIslemTab('alim')"><i class="fas fa-arrow-down"></i> Alım Faturaları</a></li>
-            <li class="nav-item"><a class="nav-link fw-bold text-danger" style="cursor:pointer;" id="tab-satis-link" onclick="switchIslemTab('satis')"><i class="fas fa-arrow-up"></i> Satış Faturaları</a></li>
-            <li class="nav-item"><a class="nav-link fw-bold text-primary" style="cursor:pointer;" id="tab-cari-link" onclick="switchIslemTab('cari')"><i class="fas fa-users"></i> Cari Hesaplar</a></li>
+        <div class="d-flex justify-content-between align-items-center mb-4 mt-2">
+            <h4 class="fw-bold mb-0 text-dark" style="font-family: 'Montserrat', sans-serif;"><i class="fas fa-exchange-alt me-2 text-primary"></i> İşlem ve Finans Yönetimi</h4>
+        </div>
+
+        <ul class="nav nav-tabs mb-4 justify-content-center fw-bold" id="islemTabs" style="font-size: 1.1rem;">
+            <li class="nav-item">
+                <a class="nav-link active" style="color: #2e7d32; cursor: pointer; border-bottom: 3px solid #2e7d32;" id="tab-alim-link" onclick="switchIslemTab('alim')">
+                    <i class="fas fa-arrow-down me-1"></i> Alım Faturaları
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" style="color: #d9534f; cursor: pointer; border: none;" id="tab-satis-link" onclick="switchIslemTab('satis')">
+                    <i class="fas fa-arrow-up me-1"></i> Satış Faturaları
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" style="color: #0d6efd; cursor: pointer; border: none;" id="tab-cari-link" onclick="switchIslemTab('cari')">
+                    <i class="fas fa-users me-1"></i> Cari Hesaplar
+                </a>
+            </li>
         </ul>
 
         <!-- 1 ve 2. SEKME: FATURA GİRİŞ EKRANI (ALIM / SATIŞ ORTAK) -->
         <div id="islem-fatura-view">
             <!-- Üst Bilgiler -->
-            <div class="card-custom shadow-sm mb-3">
-                <div class="card-head py-2 px-4" id="inv_header" style="background: var(--brand-green); color: white; border-radius: 12px 12px 0 0;">
+            <div class="card-custom shadow-sm mb-3 border">
+                <div class="card-head py-2 px-4" id="inv_header" style="background: #2e7d32; color: white; border-radius: 12px 12px 0 0;">
                     <span class="fw-bold"><i class="fas fa-file-invoice"></i> Yeni Alım Faturası Gir (Stok Girişi)</span>
                 </div>
                 <div class="card-body p-3 bg-light" style="border-radius: 0 0 12px 12px;">
@@ -381,8 +396,9 @@
                                 <span>Cari Hesap (Firma / Müşteri)</span>
                                 <a href="#" onclick="switchIslemTab('cari'); openNewCariModal(); return false;" class="text-primary text-decoration-none"><i class="fas fa-plus"></i> Yeni Cari Aç</a>
                             </label>
-                            <select id="inv_party" class="form-select fw-bold shadow-none text-uppercase">
-                                <option value="">-- Cari Seçiniz --</option>
+                            <!-- CARİ AÇILIR LİSTESİ BURAYA EKLENDİ -->
+                            <select id="inv_party" class="form-select fw-bold shadow-none text-uppercase border-primary">
+                                <option value="">-- Genel Cari (İsimsiz) --</option>
                             </select>
                         </div>
                     </div>
@@ -393,7 +409,7 @@
             <div class="row g-3">
                 <!-- Kalem Ekleme Formu -->
                 <div class="col-lg-4">
-                    <div class="card-custom shadow-sm h-100">
+                    <div class="card-custom shadow-sm h-100 border">
                         <div class="card-body p-3 bg-white rounded-3">
                             <h6 class="fw-bold border-bottom pb-2 mb-3 text-secondary"><i class="fas fa-cart-plus text-primary"></i> Faturaya Kalem Ekle</h6>
                             
@@ -433,7 +449,7 @@
                 
                 <!-- Fatura Sepeti -->
                 <div class="col-lg-8">
-                    <div class="card-custom shadow-sm h-100 d-flex flex-column">
+                    <div class="card-custom shadow-sm h-100 d-flex flex-column border">
                         <div class="card-head py-2 px-3 bg-dark text-white d-flex justify-content-between align-items-center" style="border-radius: 12px 12px 0 0;">
                             <span class="fw-bold fs-6"><i class="fas fa-list-ol"></i> Eklenecek Fatura Kalemleri</span>
                             <span class="badge bg-warning text-dark fs-6" id="inv_total_disp">Ara Toplam: 0.00 ₺</span>
@@ -458,16 +474,16 @@
                             </div>
                         </div>
                         <div class="card-footer bg-white border-top p-3">
-                            <button class="btn w-100 fw-bold text-white shadow-sm py-2 fs-5" id="btnSaveInvoice" style="background-color: var(--brand-green);" onclick="saveBulkInvoice()"><i class="fas fa-check-circle me-2"></i> FATURAYI KAYDET VE STOKLARA İŞLE</button>
+                            <button class="btn w-100 fw-bold text-white shadow-sm py-2 fs-5" id="btnSaveInvoice" style="background-color: var(--brand-green);" onclick="saveBulkInvoice()"><i class="fas fa-check-circle me-2"></i> FATURAYI KAYDET VE İŞLE</button>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- Son Kaydedilenler -->
-            <div class="card-custom mt-4 shadow-sm">
+            <div class="card-custom mt-4 shadow-sm border">
                 <div class="card-head py-2 px-3 bg-secondary text-white" style="border-radius: 12px 12px 0 0;">
-                    <span class="small fw-bold"><i class="fas fa-history"></i> Bu Ekrandan Kaydedilen Son İşlemler (Düzeltme Yapılabilir)</span>
+                    <span class="small fw-bold"><i class="fas fa-history"></i> Bu Ekrandan Kaydedilen Son İşlemler (Hatalı Kayıtları Buradan Silebilirsiniz)</span>
                 </div>
                 <div class="card-body p-0 table-responsive" style="max-height: 25vh;">
                     <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.85rem;">
@@ -4425,14 +4441,15 @@ function syncVariantTotal() {
         cariSelect.value = currentVal; // Eski seçimi koru
     };
 
-    // SEKMELER ARASI GEÇİŞ
+    // SEKMELER ARASI GEÇİŞ (RENKLENDİRME DÜZELTİLDİ)
     window.switchIslemTab = function(tab) {
         document.getElementById('islem-fatura-view').style.display = (tab === 'cari') ? 'none' : 'block';
         document.getElementById('islem-cari-view').style.display = (tab === 'cari') ? 'block' : 'none';
         
         ['alim', 'satis', 'cari'].forEach(t => {
-            document.getElementById('tab-' + t + '-link').classList.remove('active', 'bg-light');
-            document.getElementById('tab-' + t + '-link').style.background = 'transparent';
+            var link = document.getElementById('tab-' + t + '-link');
+            link.style.borderBottom = 'none';
+            link.classList.remove('active');
         });
 
         var activeLink = document.getElementById('tab-' + tab + '-link');
@@ -4440,16 +4457,16 @@ function syncVariantTotal() {
         
         if(tab === 'alim') {
             document.getElementById('inv_type_flag').value = 'IN';
-            document.getElementById('inv_header').style.background = 'var(--brand-green)';
+            document.getElementById('inv_header').style.background = '#2e7d32'; // Koyu Yeşil
             document.getElementById('inv_header').innerHTML = '<span class="fw-bold"><i class="fas fa-arrow-down"></i> Yeni Alım Faturası (Stok Girişi)</span>';
-            activeLink.style.background = '#eaf8ea';
+            activeLink.style.borderBottom = '3px solid #2e7d32';
         } else if(tab === 'satis') {
             document.getElementById('inv_type_flag').value = 'OUT';
-            document.getElementById('inv_header').style.background = '#d9534f';
+            document.getElementById('inv_header').style.background = '#d9534f'; // Kırmızı
             document.getElementById('inv_header').innerHTML = '<span class="fw-bold"><i class="fas fa-arrow-up"></i> Yeni Satış Faturası (Stok Çıkışı)</span>';
-            activeLink.style.background = '#fdf2f3';
+            activeLink.style.borderBottom = '3px solid #d9534f';
         } else {
-            activeLink.style.background = '#f0f8ff';
+            activeLink.style.borderBottom = '3px solid #0d6efd';
             renderCariDashboard();
         }
         renderRecentTx();
@@ -4473,7 +4490,9 @@ function syncVariantTotal() {
                 <td class="fw-bold" style="color:var(--brand-green);">${t.party || 'Genel'}</td>
                 <td class="text-truncate" style="max-width:150px;" title="${t.desc}">${icon} ${pName} <small class="text-muted">(${t.qty}x)</small></td>
                 <td class="text-end fw-bold text-primary">${lineTotal} ₺</td>
-                <td class="text-end pe-3"><button class="btn btn-sm btn-outline-danger" onclick="deleteCariTx('${t.fbId}')" title="Sil ve İptal Et"><i class="fas fa-trash"></i></button></td>
+                <td class="text-end pe-3">
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteCariTx('${t.fbId}', 'recent')" title="Sil ve İptal Et"><i class="fas fa-trash"></i></button>
+                </td>
             </tr>`;
         });
     };
@@ -4491,48 +4510,78 @@ function syncVariantTotal() {
         } catch(e) {}
     };
 
-    // Penceredeki "Buluta Kaydet" butonuna basınca
-    window.saveCurrentBasket = async function() {
-        if(basketList.length === 0) { alert("Sepetinizde ürün bulunmuyor!"); return; }
+    // GÜNCELLENMİŞ SİLME FONKSİYONU (NULL HATASINI ÇÖZER)
+    window.deleteCariTx = async function(fbId, source) {
+        if(!confirm("İşlemi silmek istediğinize emin misiniz? (Stoklu işlemse ürün geri iade edilir)")) return;
+        var tx = txList.find(x => x.fbId === fbId);
+        if(!tx) return;
         
-        var nameInput = document.getElementById('basket_name').value.trim();
-        if(!nameInput) {
-            nameInput = prompt("Paket/Sepet için bir ad girin (Örn: İkili Bakım Seti):");
-            if(!nameInput) return;
-            document.getElementById('basket_name').value = nameInput;
-        }
-        
-        var existingBasket = activeBasketId ? savedBaskets.find(function(x) { return x.id == activeBasketId; }) : null;
-        
-        var basketData = {
-            id: activeBasketId || Date.now(),
-            name: nameInput,
-            desc: existingBasket ? (existingBasket.desc || "") : "", 
-            box: document.getElementById('basket_box_size').value || (existingBasket ? existingBasket.box : ""), // SEÇİLEN KUTUYU KAYDEDER
-            items: basketList.map(function(i) { return { pid: i.p.id, qty: i.qty, variant: i.variant || null }; }), 
-            ship: parseFloat(document.getElementById('basket_ship').value) || 0,
-            comm: parseFloat(document.getElementById('basket_comm').value) || 0,
-            service: parseFloat(document.getElementById('basket_service').value) || 0,
-            tax: parseFloat(document.getElementById('basket_tax').value) || 0,
-            sellEcom: parseFloat(document.getElementById('basket_sell_ecom').value) || 0,
-            sellStore: parseFloat(document.getElementById('basket_sell_store').value) || 0
-        };
-
         try {
-            if(activeBasketId) {
-                if(existingBasket && existingBasket.fbId) {
-                    await window.fbUpdateDoc(window.fbDoc(window.db, "baskets", existingBasket.fbId), basketData);
-                } else {
-                    await window.fbAddDoc(window.fbCollection(window.db, "baskets"), basketData);
+            // Eğer Stoklu işlemse ürünü bul ve miktarı geri ver
+            if(tx.type.includes('STOK')) {
+                var p = productList.find(x => x.id == tx.pid);
+                if(p) {
+                    var mult = tx.type === 'STOK_ALIM' ? -1 : 1;
+                    p.qty = (parseInt(p.qty) || 0) + (tx.qty * mult);
+                    if(tx.variant && p.variants) {
+                        var v = p.variants.find(x => x.name === tx.variant);
+                        if(v) v.qty = (parseInt(v.qty) || 0) + (tx.qty * mult);
+                    }
+                    if(p.fbId) await window.fbUpdateDoc(window.fbDoc(window.db, "products", p.fbId), p);
                 }
-            } else {
-                activeBasketId = basketData.id;
-                await window.fbAddDoc(window.fbCollection(window.db, "baskets"), basketData);
             }
+            
+            // İşlemi Buluttan Sil
+            await window.fbDeleteDoc(window.fbDoc(window.db, "transactions", fbId));
+            
+            // Eğer Modal açıksa (Ekstreden siliniyorsa) kapatmaya çalışma, listeyi yenile
             await window.fetchFromFirestore();
-            alert("Paket başarıyla BULUTA kaydedildi!");
-            getBasketModal().hide();
-        } catch(e) { alert("Hata oluştu: " + e.message); }
+            alert("İşlem başarıyla silindi!");
+            
+            if(source === 'recent') {
+                renderRecentTx(); 
+            } else {
+                var partyName = document.getElementById('pay_cari_name').value;
+                if(partyName) openCariExtre(partyName); // Ekstreyi tazelemek için tekrar çağır
+            }
+
+        } catch(e) { alert("Hata: " + e.message); }
+    };
+    
+    // PDF YAZDIRMA (EKSTRE İÇİN) - HTML'DE YAZDIR BUTONUNA BAĞLIDIR
+    window.printCariExtre = function() {
+        var jsPDFObj = window.jspdf ? window.jspdf.jsPDF : (window.jsPDF || null);
+        if (!jsPDFObj) { alert("PDF Kütüphanesi yüklenemedi."); return; }
+        var doc = new jsPDFObj();
+        var pName = document.getElementById('pay_cari_name').value;
+        
+        doc.setFontSize(16); doc.setTextColor(10, 61, 50);
+        doc.text(pName + " - CARI HESAP EKSTRESI", 14, 20);
+        doc.setFontSize(10); doc.setTextColor(100, 100, 100);
+        doc.text("Tarih: " + new Date().toLocaleDateString('tr-TR'), 14, 26);
+        
+        var borc = document.getElementById('ce_borc').innerText;
+        var alacak = document.getElementById('ce_alacak').innerText;
+        var bakiye = document.getElementById('ce_bakiye').innerText;
+        var bColor = document.getElementById('ce_bakiye').className.includes('success') ? "Alacakli (Artida)" : "Borclu (Ekside)";
+        
+        doc.setTextColor(50, 50, 50);
+        doc.text("Satislar / Bize Borcu: " + borc, 14, 36);
+        doc.text("Alimlar / Bizim Borcumuz: " + alacak, 14, 42);
+        doc.text("Net Durum (" + bColor + "): " + bakiye, 14, 48);
+
+        var rows = [];
+        var trs = document.querySelectorAll('#cariExtreBody tr');
+        trs.forEach(tr => {
+            var cols = tr.querySelectorAll('td');
+            if(cols.length >= 4) {
+                var cDesc = cols[2].innerText.replace('\n', ' '); // HTML br etiketini temizle
+                rows.push([cols[0].innerText, cols[1].innerText, cDesc, cols[3].innerText]);
+            }
+        });
+
+        doc.autoTable({ startY: 55, head: [['Tarih', 'Islem Turu', 'Aciklama / Belge', 'Tutar']], body: rows, styles: { fontSize: 9 } });
+        doc.save(pName.replace(/\s+/g, '_') + "_Ekstre.pdf");
     };
 </script>
 </body>
