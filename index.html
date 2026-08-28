@@ -2052,7 +2052,7 @@ if(p.variants && p.variants.length > 0) {
             var s = partySummary[key];
             var bakiye = s.borc - s.alacak;
             var bColor = bakiye > 0 ? 'success' : (bakiye < 0 ? 'danger' : 'secondary');
-            var bText = bakiye > 0 ? `Bize Borcu Var: +${bakiye.toLocaleString('tr-TR',{minimumFractionDigits:2})} ₺` : (bakiye < 0 ? `Bizim Borcumuz: ${bakiye.toLocaleString('tr-TR',{minimumFractionDigits:2})} ₺` : `Bakiye: 0.00 ₺`);
+            var bText = bakiye > 0 ? `Bize Borcu Var: +${bakiye.toLocaleString('tr-TR',{minimumFractionDigits:2})} ₺` : (bakiye < 0 ? `Bizim Borcumuz: ${Math.abs(bakiye).toLocaleString('tr-TR',{minimumFractionDigits:2})} ₺` : `Bakiye: 0.00 ₺`);
 
             cont.innerHTML += `
             <div class="col-md-6 col-xl-4">
@@ -2063,7 +2063,8 @@ if(p.variants && p.variants.length > 0) {
                     </div>
                     <div class="d-flex justify-content-between small text-muted mb-1"><span>Satışlarımız:</span> <span>${s.borc.toLocaleString('tr-TR',{minimumFractionDigits:2})} ₺</span></div>
                     <div class="d-flex justify-content-between small text-muted mb-2"><span>Alımlarımız:</span> <span>${s.alacak.toLocaleString('tr-TR',{minimumFractionDigits:2})} ₺</span></div>
-                    <div class="py-2 px-3 bg-${bColor} bg-opacity-10 text-${bColor} fw-bold rounded text-center" style="font-size:0.9rem;">${bText}</div>
+                    <div class="py-2 px-3 bg-${bColor} bg-opacity-10 text-${bColor} fw-bold rounded text-center mb-2" style="font-size:0.9rem;">${bText}</div>
+                    <button class="btn btn-sm btn-outline-secondary w-100 fw-bold" onclick="event.stopPropagation(); printCariExtreDirect('${key}')"><i class="fas fa-print text-danger"></i> Ekstreyi Yazdır</button>
                 </div>
             </div>`;
         }
@@ -2494,7 +2495,21 @@ if(p.variants && p.variants.length > 0) {
             alert("Buluta kaydedilirken hata oluştu: " + e.message);
         }
     }
-    function loadSavedBasket(bid) {
+    
+    var basketEditorModalInstance = null;
+    function getBasketModal() {
+        if(!basketEditorModalInstance) {
+            basketEditorModalInstance = new bootstrap.Modal(document.getElementById('basketEditorModal'));
+        }
+        return basketEditorModalInstance;
+    }
+
+    window.openNewBasketModal = function() {
+        window.resetActiveBasket();
+        getBasketModal().show();
+    };
+
+    window.loadSavedBasket = function(bid) {
         var b = savedBaskets.find(function(x) { return x.id == bid; });
         if(!b) return;
         
@@ -2503,15 +2518,16 @@ if(p.variants && p.variants.length > 0) {
         document.getElementById('basket_ship').value = b.ship;
         document.getElementById('basket_comm').value = b.comm;
         document.getElementById('basket_tax').value = b.tax;
+        if(document.getElementById('basket_service')) document.getElementById('basket_service').value = b.service || 0;
         document.getElementById('basket_sell_ecom').value = b.sellEcom;
         document.getElementById('basket_sell_store').value = b.sellStore;
+        if(document.getElementById('basket_box_size')) document.getElementById('basket_box_size').value = b.box || ""; 
         
         basketList = [];
         var missingItems = false;
         b.items.forEach(function(item) {
             var p = productList.find(function(x) { return x.id == item.pid; });
             if(p) {
-                // ÇÖZÜM: variant verisini de basketList'e ekliyoruz
                 basketList.push({ p: p, qty: item.qty, variant: item.variant }); 
             } else {
                 missingItems = true;
@@ -2520,44 +2536,40 @@ if(p.variants && p.variants.length > 0) {
 
         if(missingItems) alert("Uyarı: Bu paketin içindeki bazı ürünler genel listeden silinmiş!");
         renderBasket();
-        
-        // Düzenleme alanına kaydır
-        document.getElementById('basket_name').scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
+        getBasketModal().show();
+    };
 
-    async function deleteSavedBasket(bid) {
+    window.deleteSavedBasket = async function(bid) {
         if(confirm("Bu paketi tamamen silmek istiyor musunuz?")) {
             var b = savedBaskets.find(function(x) { return x.id == bid; });
             if(b && b.fbId) {
                 try {
-                    // Buluttan Sil
                     await window.fbDeleteDoc(window.fbDoc(window.db, "baskets", b.fbId));
-                    if(activeBasketId == bid) resetActiveBasket();
-                    await window.fetchFromFirestore(); // Listeyi tazele
+                    if(activeBasketId == bid) window.resetActiveBasket();
+                    await window.fetchFromFirestore(); 
                 } catch(e) {
                     alert("Silinirken hata oluştu: " + e.message);
                 }
             } else {
-                // Eskiden tarayıcıda kalmış yerel bir veri ise (Geriye Dönük Uyumluluk)
                 savedBaskets = savedBaskets.filter(function(x) { return x.id != bid; });
                 localStorage.setItem(BASKET_DB_NAME, JSON.stringify(savedBaskets));
-                if(activeBasketId == bid) resetActiveBasket();
+                if(activeBasketId == bid) window.resetActiveBasket();
                 renderSavedBaskets();
             }
         }
-    }
+    };
 
-    function resetActiveBasket() {
+    window.resetActiveBasket = function() {
         activeBasketId = null;
         document.getElementById('basket_name').value = "";
         document.getElementById('basket_sell_ecom').value = "";
         document.getElementById('basket_sell_store').value = "";
-        document.getElementById('basket_box_size').value = ""; // KUTU SEÇİMİNİ SIFIRLAR
+        if(document.getElementById('basket_box_size')) document.getElementById('basket_box_size').value = ""; 
         basketList = [];
         renderBasket();
-    }
+    };
 
-    function updateBasketSelect() {
+    window.updateBasketSelect = function() {
         try {
             var bSelect = document.getElementById('basket_product');
             if(!bSelect) return;
@@ -2568,36 +2580,35 @@ if(p.variants && p.variants.length > 0) {
                 bSelect.innerHTML += '<option value="' + p.id + '">' + p.name + ' (Alış: ' + p.buy + '₺ | Stok: ' + (p.qty||0) + ')</option>';
             }
         } catch(e) {}
-    }
+    };
 
-    function addToBasket() {
+    window.addToBasket = function() {
         var pid = document.getElementById('basket_product').value;
         var qty = parseInt(document.getElementById('basket_qty').value) || 1;
+        var varSelect = document.getElementById('basket_variant');
+        var variantName = varSelect && varSelect.style.display === "block" ? varSelect.value : null;
         
         if(!pid) { alert("Lütfen bir ürün seçin."); return; }
+        if(varSelect && varSelect.style.display === "block" && !variantName) { alert("Lütfen varyant seçin!"); return; }
         
-        var product = null;
-        for(var i=0; i<productList.length; i++) {
-            if(productList[i].id == pid) { product = productList[i]; break; }
-        }
-        
+        var product = productList.find(x => x.id == pid);
         if(product) {
-            basketList.push({ p: product, qty: qty });
+            basketList.push({ p: product, qty: qty, variant: variantName });
             document.getElementById('basket_qty').value = 1;
             renderBasket();
         }
-    }
+    };
 
-    function removeFromBasket(index) {
+    window.removeFromBasket = function(index) {
         basketList.splice(index, 1);
         renderBasket();
-    }
+    };
 
-    function clearBasket() {
+    window.clearBasket = function() {
         if(confirm("Sepeti tamamen temizlemek istiyor musunuz?")) {
-            resetActiveBasket();
+            window.resetActiveBasket();
         }
-    }
+    };
 
     // Sepet/Paket bilgisini Katalog Modülüne Aktarır (Toplam Fiyat Görselli)
     window.sendBasketToCatalog = function(bid) {
