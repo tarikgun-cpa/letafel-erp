@@ -355,47 +355,62 @@
             <div class="col-lg-4">
                 <div class="card-custom h-100 shadow-sm border-0 d-flex flex-column">
                     <div class="bg-white text-dark border-bottom d-flex justify-content-between align-items-center pb-2 pt-3 px-4" style="border-radius: 12px 12px 0 0;">
-                        <span class="fw-bold fs-6"><i class="fas fa-edit me-2" style="color: var(--brand-gold);"></i> Yeni İşlem Kaydı</span>
+                        <span class="fw-bold fs-6"><i class="fas fa-edit me-2" style="color: var(--brand-gold);"></i> Yeni İşlem Fişi</span>
                     </div>
                     <div class="card-body p-4 bg-light flex-grow-1" style="border-radius: 0 0 12px 12px;">
                         
                         <div class="bg-white p-3 rounded-4 shadow-sm mb-3 border border-light">
-                            <label class="small fw-bold text-muted mb-1">İşlem Türü</label>
-                            <select id="tx_type" class="form-select mb-3 fw-bold shadow-none border-light bg-light" onchange="toggleBuyPriceField()">
-                                <option value="IN">📥 Ürün Alımı (Stoka Ekle)</option>
-                                <option value="OUT">📤 Ürün Satışı (Stoktan Düş)</option>
+                            <input type="hidden" id="tx_edit_fbid" value="">
+                            <label class="small fw-bold text-muted mb-1">İşlem Kategori / Türü</label>
+                            <select id="tx_type" class="form-select mb-3 fw-bold shadow-none border-light bg-light text-primary" onchange="toggleTxFields()">
+                                <optgroup label="Ürün / Stok İşlemleri">
+                                    <option value="STOK_ALIM">📥 Stoklu Alım Faturası (Giriş)</option>
+                                    <option value="STOK_SATIS">📤 Stoklu Satış Faturası (Çıkış)</option>
+                                </optgroup>
+                                <optgroup label="Hizmet / Gider Kalemleri">
+                                    <option value="HIZMET_ALIM">🛠️ Hizmet veya Masraf Alımı</option>
+                                    <option value="HIZMET_SATIS">💡 Hizmet veya Gelir Satışı</option>
+                                </optgroup>
+                                <optgroup label="Finans / Nakit Akışı">
+                                    <option value="TAHSILAT_AL">💰 Cari Tahsilat Al (Bize Ödenen)</option>
+                                    <option value="ODEME_YAP">💸 Cari Ödeme Yap (Bizim Ödediğimiz)</option>
+                                </optgroup>
                             </select>
                             
                             <label class="small fw-bold text-muted mb-1">Tarih</label>
                             <input type="date" id="tx_date" class="form-control mb-3 shadow-none border-light bg-light">
                             
-                            <label class="small fw-bold text-muted mb-1 d-flex justify-content-between">
-                                <span>Ürün Seçimi</span>
-                                <a href="#" onclick="openProductModal(); return false;" class="text-decoration-none fw-bold" style="color: var(--brand-gold);"><i class="fas fa-plus"></i> Yeni Tanımla</a>
-                            </label>
-                            <select id="tx_product" class="form-select mb-2 shadow-none border-light bg-light" onchange="loadTxVariants()"></select>
-                            <select id="tx_variant" class="form-select mb-3 border-info text-info fw-bold bg-info bg-opacity-10 shadow-none" style="display:none;"></select>
+                            <div id="tx_product_wrapper">
+                                <label class="small fw-bold text-muted mb-1 d-flex justify-content-between">
+                                    <span>Ürün Seçimi</span>
+                                    <a href="#" onclick="openProductModal(); return false;" class="text-decoration-none fw-bold" style="color: var(--brand-gold);"><i class="fas fa-plus"></i> Yeni Tanımla</a>
+                                </label>
+                                <select id="tx_product" class="form-select mb-2 shadow-none border-light bg-light" onchange="loadTxVariants()"></select>
+                                <select id="tx_variant" class="form-select mb-3 border-info text-info fw-bold bg-info bg-opacity-10 shadow-none" style="display:none;"></select>
+                            </div>
                             
-                            <label class="small fw-bold text-muted mb-1">İşlem Adedi</label>
-                            <input type="number" id="tx_qty" class="form-control mb-3 text-center fw-bold shadow-none border-light bg-light" placeholder="Örn: 50">
+                            <div id="tx_qty_wrapper">
+                                <label class="small fw-bold text-muted mb-1">İşlem Adedi</label>
+                                <input type="number" id="tx_qty" class="form-control mb-3 text-center fw-bold shadow-none border-light bg-light" placeholder="Örn: 10" value="1">
+                            </div>
                         </div>
 
                         <div class="bg-white p-3 rounded-4 shadow-sm border border-light">
                             <div id="tx_price_wrapper">
-                                <label id="tx_price_label" class="small fw-bold text-danger mb-1">Birim Alış Fiyatı <span class="text-muted fw-normal">(İsteğe Bağlı)</span></label>
+                                <label id="tx_price_label" class="small fw-bold text-danger mb-1">Birim Fiyat <span class="text-muted fw-normal">(*)</span></label>
                                 <div class="input-group input-group-sm mb-3 shadow-sm px-2">
-                                    <input type="number" id="tx_buy_price" class="form-control text-center fw-bold text-danger shadow-none" placeholder="Fiyat Giriniz" style="background: #fffafb; border-color: #f5c2c7;">
+                                    <input type="number" id="tx_buy_price" class="form-control text-center fw-bold text-danger shadow-none" placeholder="Tutar Giriniz" style="background: #fffafb; border-color: #f5c2c7;">
                                     <span class="input-group-text bg-danger text-white border-danger fw-bold shadow-none">₺</span>
                                 </div>
                             </div>
 
-                            <label class="small fw-bold text-muted mb-1">Karşı Taraf (Alıcı / Satıcı)</label>
-                            <input type="text" id="tx_party" class="form-control mb-3 shadow-none border-light bg-light" placeholder="Firma Unvanı veya Kişi Adı">
+                            <label class="small fw-bold text-muted mb-1">Karşı Taraf (Cari Hesap)</label>
+                            <input type="text" id="tx_party" class="form-control mb-3 shadow-none border-light bg-light text-uppercase" placeholder="Firma Unvanı / Müşteri Adı">
                             
-                            <label class="small fw-bold text-muted mb-1">Açıklama</label>
-                            <input type="text" id="tx_desc" class="form-control mb-4 shadow-none border-light bg-light" placeholder="Fatura No, Sipariş Kodu vb.">
+                            <label class="small fw-bold text-muted mb-1">Açıklama / Belge No</label>
+                            <input type="text" id="tx_desc" class="form-control mb-4 shadow-none border-light bg-light" placeholder="Fatura / Makbuz No">
                             
-                            <button class="btn w-100 fw-bold text-white shadow-sm py-2" style="background-color: var(--brand-green); letter-spacing: 0.5px;" onclick="saveTransaction()"><i class="fas fa-save me-1"></i> İŞLEMİ KAYDET</button>
+                            <button id="btnSaveTx" class="btn w-100 fw-bold text-white shadow-sm py-2 btn-success" style="letter-spacing: 0.5px;" onclick="saveTransaction()"><i class="fas fa-save me-1"></i> İŞLEMİ KAYDET</button>
                         </div>
                     </div>
                 </div>
@@ -404,11 +419,11 @@
             <div class="col-lg-8">
                 <div class="card-custom h-100 shadow-sm border-0 d-flex flex-column">
                     <div class="card-head py-3 px-4 d-flex align-items-center justify-content-between" style="background: var(--brand-green); color: var(--brand-gold); border-radius: 12px 12px 0 0;">
-                        <span class="fs-6 fw-bold letter-spacing-1"><i class="fas fa-history me-2"></i> GEÇMİŞ İŞLEMLER DEFTERİ</span>
+                        <span class="fs-6 fw-bold letter-spacing-1"><i class="fas fa-history me-2"></i> GENEL İŞLEM VE CARİ DEFTERİ</span>
                         <button class="btn btn-sm btn-outline-light text-warning fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#partySummaryCollapse"><i class="fas fa-chart-bar"></i> Cari / Kişi Özeti</button>
                     </div>
                     <div class="collapse" id="partySummaryCollapse">
-                        <div class="bg-light p-3 border-bottom shadow-inner" style="max-height: 200px; overflow-y: auto;">
+                        <div class="bg-light p-3 border-bottom shadow-inner" style="max-height: 250px; overflow-y: auto;">
                             <div class="row g-2" id="partySummaryContainer">
                                 <div class="text-muted small text-center">Hesaplanıyor...</div>
                             </div>
@@ -421,11 +436,11 @@
                                     <tr>
                                         <th class="ps-4 text-secondary small py-3">Tarih</th>
                                         <th class="text-secondary small py-3">Tür</th>
-                                        <th class="text-secondary small py-3">Ürün</th>
+                                        <th class="text-secondary small py-3">Açıklama/Ürün</th>
                                         <th class="text-center text-secondary small py-3">Adet</th>
                                         <th class="text-secondary small py-3">Fiyat</th>
-                                        <th class="text-secondary small py-3">Karşı Taraf</th>
-                                        <th class="text-end pe-4 text-secondary small py-3">İşlem</th>
+                                        <th class="text-secondary small py-3">Cari İsim</th>
+                                        <th class="text-end pe-4 text-secondary small py-3">Aksiyon</th>
                                     </tr>
                                 </thead>
                                 <tbody id="txBody"></tbody>
@@ -1707,247 +1722,233 @@ if(p.variants && p.variants.length > 0) {
         }
     }
 
-    function renderTxTable() {
-        try {
-        // YENİ: CARİ (KARŞI TARAF) ÖZETİ HESAPLAMA
-            var partySummary = {};
-            for(var x=0; x<txList.length; x++) {
-                var t = txList[x];
-                if(!t.party) continue;
-                var pName = t.party.trim().toUpperCase();
-                if(!pName) continue;
-                if(!partySummary[pName]) partySummary[pName] = { inTotal: 0, outTotal: 0 };
-                
-                var lineTotal = (parseFloat(t.price) || 0) * parseInt(t.qty);
-                if(t.type === 'IN') partySummary[pName].inTotal += lineTotal;
-                if(t.type === 'OUT') partySummary[pName].outTotal += lineTotal;
-            }
-
-            var summaryHtml = '';
-            for(var key in partySummary) {
-                var s = partySummary[key];
-                if(s.inTotal === 0 && s.outTotal === 0) continue;
-                summaryHtml += '<div class="col-md-4"><div class="border rounded bg-white p-2 shadow-sm border-start border-4 ' + (s.outTotal > s.inTotal ? 'border-success' : 'border-danger') + '">';
-                summaryHtml += '<div class="fw-bold text-dark border-bottom pb-1 mb-1 text-truncate" style="font-size:0.85rem;"><i class="fas fa-user-circle text-secondary me-1"></i> ' + key + '</div>';
-                summaryHtml += '<div class="d-flex justify-content-between" style="font-size:0.8rem;">';
-                summaryHtml += '<span class="text-success" title="Bizim Yaptığımız Satışlar">Satış: <b>' + s.outTotal.toLocaleString('tr-TR', {minimumFractionDigits: 2}) + ' ₺</b></span>';
-                summaryHtml += '<span class="text-danger" title="Bizim Yaptığımız Alımlar">Alım: <b>' + s.inTotal.toLocaleString('tr-TR', {minimumFractionDigits: 2}) + ' ₺</b></span>';
-                summaryHtml += '</div></div></div>';
-            }
-            if(summaryHtml === '') summaryHtml = '<div class="col-12 text-muted small text-center">Henüz karşı taraf (firma/kişi) belirtilmiş bir işlem kaydınız bulunmuyor.</div>';
-            var summaryContainer = document.getElementById('partySummaryContainer');
-            if(summaryContainer) summaryContainer.innerHTML = summaryHtml;
-            // ÖZET HESAPLAMA BİTİŞİ
-            var tbody = document.getElementById('txBody');
-            if(!tbody) return;
-            tbody.innerHTML = '';
-            var sortedTx = txList.slice().sort(function(a, b) { return b.id - a.id; });
-            for(var i=0; i<sortedTx.length; i++) {
-                var tx = sortedTx[i];
-                var badge = tx.type === 'IN' ? '<span class="badge bg-success">📥 ALIM</span>' : '<span class="badge bg-danger">📤 SATIŞ</span>';
-                var pName = "Silinmiş Ürün";
-                for(var j=0; j<productList.length; j++) {
-                    if(productList[j] && productList[j].id == tx.pid) { pName = productList[j].name; break; }
-                }
-                tbody.innerHTML += 
-                    '<tr>' +
-                        '<td class="fw-bold text-muted">' + (tx.date || '-') + '</td>' +
-                        '<td>' + badge + '</td>' +
-                        '<td class="fw-bold">' + pName + (tx.variant ? ' <span class="badge bg-info text-dark ms-1" style="font-size:0.7rem;"><i class="fas fa-tag"></i> ' + tx.variant + '</span>' : '') + '</td>' +
-                        '<td>' + tx.qty + '</td>' +
-                        '<td class="text-primary fw-bold">' + (tx.price ? parseFloat(tx.price).toFixed(2) + ' ₺' : '-') + '</td>' +
-                        '<td>' + (tx.party || '-') + '</td>' +
-                        '<td class="small text-muted">' + (tx.desc || '-') + '</td>' +
-                        '<td class="text-end">' +
-                            '<button class="btn btn-sm btn-outline-secondary me-1" onclick="editTransaction(' + tx.id + ')" title="İşlemi Düzenle"><i class="fas fa-edit"></i> Düzenle</button>' +
-                            '<button class="btn btn-sm btn-outline-danger" onclick="deleteTransaction(' + tx.id + ')" title="İptal Et"><i class="fas fa-trash"></i></button>' +
-                        '</td>' +
-                    '</tr>';
-            }
-        } catch(e) {}
-    }
-
-    function editTransaction(txId) {
-        try {
-            var txIndex = -1;
-            for(var i=0; i<txList.length; i++) {
-                if(txList[i] && txList[i].id == txId) { txIndex = i; break; }
-            }
-            if(txIndex > -1) {
-                var tx = txList[txIndex];
-                document.getElementById('tx_type').value = tx.type; 
-                document.getElementById('tx_date').value = tx.date;
-                
-                // Ürünü ve varyant menüsünü ekrana geri yüklüyoruz
-                document.getElementById('tx_product').value = tx.pid; 
-                loadTxVariants(); 
-                if(tx.variant) document.getElementById('tx_variant').value = tx.variant;
-
-                document.getElementById('tx_qty').value = tx.qty;
-                document.getElementById('tx_party').value = tx.party || ""; 
-                document.getElementById('tx_desc').value = tx.desc || "";
-                document.getElementById('tx_buy_price').value = tx.price || "";
-                toggleBuyPriceField();
-                
-                // STOK İADE İŞLEMİ (Hem Ana Stok, Hem Varyant Stoğu)
-                for(var j=0; j<productList.length; j++) {
-                    if(productList[j] && productList[j].id == tx.pid) {
-                        var mevcut = parseInt(productList[j].qty) || 0;
-                        if(tx.type === 'IN') productList[j].qty = mevcut - tx.qty; 
-                        if(tx.type === 'OUT') productList[j].qty = mevcut + tx.qty;
-                        
-                        // YENİ EKLENEN: İşlemde varyant varsa, onun da stoğunu iade et
-                        if(tx.variant && productList[j].variants) {
-                            var vObj = productList[j].variants.find(v => v.name === tx.variant);
-                            if(vObj) {
-                                if(tx.type === 'IN') vObj.qty = Math.max(0, parseInt(vObj.qty) - tx.qty);
-                                if(tx.type === 'OUT') vObj.qty = parseInt(vObj.qty) + tx.qty;
-                            }
-                        }
-                        break;
-                    }
-                }
-                
-                txList.splice(txIndex, 1); 
-                saveSafeData(); 
-                renderTable(); 
-                renderTxTable();
-                
-                alert("İşlem düzenleme moduna alındı.\nEski etkisi stoktan geri çekildi. Formu güncelleyip tekrar 'KAYDET' butonuna basınız.");
-            }
-        } catch (e) { alert("Düzenleme başlatılamadı."); }
-    }
-
-    function saveTransaction() {
-        try {
-            var type = document.getElementById('tx_type').value; var date = document.getElementById('tx_date').value;
-            var pid = document.getElementById('tx_product').value; var qty = parseInt(document.getElementById('tx_qty').value);
-            var party = document.getElementById('tx_party').value; var desc = document.getElementById('tx_desc').value;
-            var newPrice = parseFloat(document.getElementById('tx_buy_price').value);
-
-            if(!pid || isNaN(qty) || qty <= 0 || !date) { alert("Tarih, Ürün ve Adet alanları zorunludur."); return; }
-
-            var pIndex = -1;
-            for(var i=0; i<productList.length; i++) { if(productList[i] && productList[i].id == pid) { pIndex = i; break; } }
-
-            if(pIndex > -1) {
-                var p = productList[pIndex]; var mevcut = parseInt(p.qty) || 0; var isPriceUpdated = false;
-                var selectedVariant = document.getElementById('tx_variant').style.display === "block" ? document.getElementById('tx_variant').value : null;
-                
-                if(type === 'IN') {
-                    p.qty = mevcut + qty;
-                    if(selectedVariant && p.variants) {
-                        var vObj = p.variants.find(v => v.name === selectedVariant);
-                        if(vObj) vObj.qty = parseInt(vObj.qty) + qty;
-                    }
-                    if(!isNaN(newPrice) && newPrice > 0 && newPrice !== p.buy) {
-                        if(confirm("Bu ürünün alış fiyatını " + newPrice + " TL olarak girdiniz.\nAna ürün kartındaki fiyatı ve satış maliyetlerini güncelleyeyim mi?")) {
-                            document.getElementById('inp_tax').value = p.tax || 20; document.getElementById('inp_ship').value = p.ship || 138.90;
-                            document.getElementById('inp_comm').value = p.comm || 5.99; document.getElementById('inp_margin_ecom').value = p.marginEcom / 100 || 30;
-                            document.getElementById('inp_margin_store').value = p.marginStore / 100 || 40;
-                            var recalc = runCalcSafe('margin', newPrice);
-                            p.buy = recalc.buy; p.costEcom = recalc.costEcom; p.costStore = recalc.costStore; p.sellEcom = recalc.sellEcom; p.sellStore = recalc.sellStore; p.netEcom = recalc.netEcom; p.netStore = recalc.netStore;
-                            p.breakEvenEcom = recalc.breakEvenEcom; p.breakEvenStore = recalc.breakEvenStore; p.commAmount = recalc.commAmount; p.shipInc = recalc.shipInc;
-                            isPriceUpdated = true;
-                        }
-                    }
-                } else {
-                    if(mevcut < qty) { alert("Stok yetersiz! İşlem yapılamaz."); return; }
-                    p.qty = mevcut - qty;
-                    
-                    if(selectedVariant && p.variants) {
-                        var vObj = p.variants.find(v => v.name === selectedVariant);
-                        if(vObj) {
-                            vObj.qty = Math.max(0, (parseInt(vObj.qty) || 0) - qty);
-                        }
-                    }
-                }
-
-                var tx = { 
-                    id: Date.now(), 
-                    type: type, 
-                    date: date, 
-                    pid: pid, 
-                    qty: qty, 
-                    party: party, 
-                    desc: desc, 
-                    price: (!isNaN(newPrice) && newPrice > 0) ? newPrice : null, 
-                    variant: selectedVariant 
-                };
-                
-                // SADECE BULUTA KAYDET, SONRA EKRANI YENİLE
-                if(window.fbAddDoc && window.db) {
-                    window.fbAddDoc(window.fbCollection(window.db, "transactions"), tx)
-                    .then(async () => { 
-                        if(p.fbId) {
-                            await window.fbUpdateDoc(window.fbDoc(window.db, "products", p.fbId), p);
-                        }
-                        // Defteri buluttan geri çek
-                        await window.fetchFromFirestore(); 
-                        
-                        document.getElementById('tx_qty').value = "";
-                        document.getElementById('tx_party').value = "";
-                        document.getElementById('tx_desc').value = "";
-                        document.getElementById('tx_buy_price').value = "";
-                        var msg = "İşlem Buluta Yazıldı! Yeni Stok: " + p.qty;
-                        if(isPriceUpdated) msg += "\nFiyatlar ve maliyetler güncellendi.";
-                        checkEntrepreneurLimit();
-                        alert(msg);
-                    }) 
-                    .catch(e => {
-                        console.error(e);
-                        alert("Buluta işlem kaydedilemedi: " + e.message);
-                    });
-                } else {
-                    alert("Firebase bağlantısı yok!");
-                }
-            }
-        } catch(e) { alert("Kaydedilirken hata oluştu."); }
-    }
-
-    function deleteTransaction(txId) {
-        if(confirm("Bu işlemi iptal edip, stoğu eski haline getirmek istediğinize emin misiniz?")) {
-            try {
-                var txIndex = -1;
-                for(var i=0; i<txList.length; i++) { if(txList[i] && txList[i].id == txId) { txIndex = i; break; } }
-                if(txIndex > -1) {
-                    var tx = txList[txIndex];
-                    
-                    for(var j=0; j<productList.length; j++) {
-                        if(productList[j] && productList[j].id == tx.pid) {
-                            var mevcut = parseInt(productList[j].qty) || 0;
-                            if(tx.type === 'IN') productList[j].qty = mevcut - tx.qty; 
-                            if(tx.type === 'OUT') productList[j].qty = mevcut + tx.qty;
-                            
-                            if(tx.variant && productList[j].variants) {
-                                var vObj = productList[j].variants.find(v => v.name === tx.variant);
-                                if(vObj) {
-                                    if(tx.type === 'IN') vObj.qty = Math.max(0, parseInt(vObj.qty) - tx.qty);
-                                    if(tx.type === 'OUT') vObj.qty = parseInt(vObj.qty) + tx.qty;
-                                }
-                            }
-                            
-                            // Ürün stoğunu buluta kaydet
-                            if(productList[j].fbId && window.fbUpdateDoc && window.db) {
-                                window.fbUpdateDoc(window.fbDoc(window.db, "products", productList[j].fbId), productList[j]);
-                            }
-                            break;
-                        }
-                    }
-                    
-                    // İşlemi Buluttan Sil ve Ekranı Yenile
-                    if(tx.fbId && window.fbDeleteDoc && window.db) {
-                        window.fbDeleteDoc(window.fbDoc(window.db, "transactions", tx.fbId))
-                        .then(() => {
-                            window.fetchFromFirestore();
-                            alert("İşlem silindi ve stok iade edildi.");
-                        }).catch(e=>console.log(e));
-                    }
-                }
-            } catch(e) {}
+    window.toggleTxFields = function() {
+        var t = document.getElementById('tx_type').value;
+        var pWrap = document.getElementById('tx_product_wrapper');
+        var qWrap = document.getElementById('tx_qty_wrapper');
+        var pLabel = document.getElementById('tx_price_label');
+        
+        if(t.includes('STOK')) {
+            pWrap.style.display = 'block'; qWrap.style.display = 'block';
+            pLabel.innerHTML = 'Birim Fiyat <span class="text-muted fw-normal">(*)</span>';
+        } else {
+            pWrap.style.display = 'none'; qWrap.style.display = 'none';
+            pLabel.innerHTML = 'Toplam Tutar <span class="text-muted fw-normal">(*)</span>';
         }
-    }
+    };
 
+    window.saveTransaction = async function() {
+        var type = document.getElementById('tx_type').value; 
+        var date = document.getElementById('tx_date').value;
+        var pid = document.getElementById('tx_product').value; 
+        var qty = type.includes('STOK') ? (parseInt(document.getElementById('tx_qty').value) || 1) : 1;
+        var party = document.getElementById('tx_party').value.trim().toUpperCase() || "GENEL CARİ"; 
+        var desc = document.getElementById('tx_desc').value.trim();
+        var price = parseFloat(document.getElementById('tx_buy_price').value) || 0;
+        var variant = document.getElementById('tx_variant').style.display !== "none" ? document.getElementById('tx_variant').value : null;
+        var editFbId = document.getElementById('tx_edit_fbid').value;
+
+        if(!date || price <= 0) { alert("Tarih ve Tutar alanları zorunludur."); return; }
+        if(type.includes('STOK') && !pid) { alert("Stoklu işlemler için ürün seçmelisiniz."); return; }
+
+        var btn = document.getElementById('btnSaveTx');
+        btn.disabled = true; btn.innerHTML = "KAYDEDİLİYOR...";
+
+        try {
+            var p = null;
+            if(type.includes('STOK')) {
+                p = productList.find(x => x.id == pid);
+                if(!p) throw new Error("Ürün bulunamadı");
+            }
+
+            // DÜZENLEME MODUYSA ESKİ STOK ETKİSİNİ GERİ AL
+            if(editFbId) {
+                var oldTx = txList.find(x => x.fbId === editFbId);
+                if(oldTx && oldTx.type.includes('STOK')) {
+                    var oldP = productList.find(x => x.id == oldTx.pid);
+                    if(oldP) {
+                        var multiplier = oldTx.type === 'STOK_ALIM' ? -1 : 1; 
+                        oldP.qty = (parseInt(oldP.qty) || 0) + (oldTx.qty * multiplier);
+                        if(oldTx.variant && oldP.variants) {
+                            var v = oldP.variants.find(x => x.name === oldTx.variant);
+                            if(v) v.qty = (parseInt(v.qty) || 0) + (oldTx.qty * multiplier);
+                        }
+                        if(oldP.fbId) await window.fbUpdateDoc(window.fbDoc(window.db, "products", oldP.fbId), oldP);
+                    }
+                }
+            }
+
+            // YENİ STOK ETKİSİNİ UYGULA
+            if(type.includes('STOK') && p) {
+                var newMultiplier = type === 'STOK_ALIM' ? 1 : -1;
+                p.qty = (parseInt(p.qty) || 0) + (qty * newMultiplier);
+                if(variant && p.variants) {
+                    var nv = p.variants.find(x => x.name === variant);
+                    if(nv) nv.qty = (parseInt(nv.qty) || 0) + (qty * newMultiplier);
+                }
+                if(p.fbId) await window.fbUpdateDoc(window.fbDoc(window.db, "products", p.fbId), p);
+            }
+
+            var txObj = { 
+                id: editFbId ? (txList.find(x => x.fbId === editFbId).id) : Date.now(), 
+                type: type, date: date, pid: type.includes('STOK') ? pid : null, 
+                qty: qty, party: party, desc: desc, price: price, 
+                variant: type.includes('STOK') ? variant : null 
+            };
+
+            // BULUTA GÜNCELLE VEYA YENİ EKLE
+            if(editFbId) {
+                await window.fbUpdateDoc(window.fbDoc(window.db, "transactions", editFbId), txObj);
+            } else {
+                await window.fbAddDoc(window.fbCollection(window.db, "transactions"), txObj);
+            }
+
+            // FORMU SIFIRLA
+            document.getElementById('tx_edit_fbid').value = "";
+            document.getElementById('tx_qty').value = "1";
+            document.getElementById('tx_party').value = "";
+            document.getElementById('tx_desc').value = "";
+            document.getElementById('tx_buy_price').value = "";
+            
+            btn.className = "btn w-100 fw-bold text-white shadow-sm py-2 btn-success";
+            btn.innerHTML = '<i class="fas fa-save me-1"></i> İŞLEMİ KAYDET';
+            btn.disabled = false;
+
+            await window.fetchFromFirestore();
+            alert("İşlem Cari ve Stok defterine başarıyla işlendi.");
+
+        } catch (e) {
+            alert("Kayıt Hatası: " + e.message);
+            btn.disabled = false; btn.innerHTML = '<i class="fas fa-save me-1"></i> İŞLEMİ KAYDET';
+        }
+    };
+
+    window.editTransaction = function(fbId) {
+        var tx = txList.find(x => x.fbId === fbId);
+        if(!tx) return;
+        
+        document.getElementById('tx_edit_fbid').value = tx.fbId;
+        document.getElementById('tx_type').value = tx.type; 
+        document.getElementById('tx_date').value = tx.date;
+        window.toggleTxFields();
+
+        if(tx.type.includes('STOK')) {
+            document.getElementById('tx_product').value = tx.pid || ""; 
+            loadTxVariants(); 
+            if(tx.variant) document.getElementById('tx_variant').value = tx.variant;
+            document.getElementById('tx_qty').value = tx.qty;
+        }
+
+        document.getElementById('tx_party').value = tx.party || ""; 
+        document.getElementById('tx_desc').value = tx.desc || "";
+        document.getElementById('tx_buy_price').value = tx.price || "";
+        
+        var btn = document.getElementById('btnSaveTx');
+        btn.innerHTML = '<i class="fas fa-sync-alt me-1"></i> DEĞİŞİKLİĞİ GÜNCELLE';
+        btn.className = "btn w-100 fw-bold text-dark shadow-sm py-2 btn-warning";
+        alert("Kayıt forma çekildi. Değiştirip güncelleyebilirsiniz.");
+    };
+
+    window.deleteTransaction = async function(fbId) {
+        if(!confirm("İşlemi silmek istediğinize emin misiniz? Stok ve Cari kaydı geri alınacaktır.")) return;
+        var tx = txList.find(x => x.fbId === fbId);
+        if(!tx) return;
+        try {
+            if(tx.type.includes('STOK')) {
+                var p = productList.find(x => x.id == tx.pid);
+                if(p) {
+                    var multiplier = tx.type === 'STOK_ALIM' ? -1 : 1;
+                    p.qty = (parseInt(p.qty) || 0) + (tx.qty * multiplier);
+                    if(tx.variant && p.variants) {
+                        var v = p.variants.find(x => x.name === tx.variant);
+                        if(v) v.qty = (parseInt(v.qty) || 0) + (tx.qty * multiplier);
+                    }
+                    if(p.fbId) await window.fbUpdateDoc(window.fbDoc(window.db, "products", p.fbId), p);
+                }
+            }
+            await window.fbDeleteDoc(window.fbDoc(window.db, "transactions", fbId));
+            await window.fetchFromFirestore();
+            alert("İşlem tamamen silindi.");
+        } catch(e) { alert("Hata: " + e.message); }
+    };
+
+    window.renderTxTable = function() {
+        var tbody = document.getElementById('txBody');
+        var summaryContainer = document.getElementById('partySummaryContainer');
+        if(!tbody || !summaryContainer) return;
+        
+        tbody.innerHTML = '';
+        var partySummary = {};
+        var sortedTx = txList.slice().sort(function(a, b) { return new Date(b.date) - new Date(a.date); });
+        
+        sortedTx.forEach(function(tx) {
+            var partyName = tx.party ? tx.party.trim().toUpperCase() : "DİĞER CARİLER";
+            if(!partySummary[partyName]) partySummary[partyName] = { borc: 0, alacak: 0 };
+            
+            var lineTotal = (parseFloat(tx.price) || 0);
+            if(tx.type.includes('STOK')) lineTotal *= (parseInt(tx.qty) || 1);
+
+            // Müşteriye sattık veya nakit ödedik -> Bizim Cari Alacağımız Artar (Karşı taraf bize borçlanır)
+            if(tx.type === 'STOK_SATIS' || tx.type === 'HIZMET_SATIS' || tx.type === 'ODEME_YAP') partySummary[partyName].borc += lineTotal;
+            // Tedarikçiden aldık veya nakit tahsil ettik -> Bizim Cari Borcumuz Artar (Karşı tarafa alacak yazar)
+            if(tx.type === 'STOK_ALIM' || tx.type === 'HIZMET_ALIM' || tx.type === 'TAHSILAT_AL') partySummary[partyName].alacak += lineTotal;
+
+            var typeBadge = ""; var pName = tx.desc || "-";
+            if(tx.type === 'STOK_ALIM') { typeBadge = '<span class="badge bg-success">📥 Stok Alım</span>'; pName = getProdName(tx); }
+            else if(tx.type === 'STOK_SATIS') { typeBadge = '<span class="badge bg-danger">📤 Stok Satış</span>'; pName = getProdName(tx); }
+            else if(tx.type === 'HIZMET_ALIM') { typeBadge = '<span class="badge bg-secondary">🛠️ Masraf/Gider</span>'; }
+            else if(tx.type === 'HIZMET_SATIS') { typeBadge = '<span class="badge bg-primary">💡 Gelir/Hizmet</span>'; }
+            else if(tx.type === 'TAHSILAT_AL') { typeBadge = '<span class="badge bg-info text-dark">💰 Tahsilat (+Nakit)</span>'; }
+            else if(tx.type === 'ODEME_YAP') { typeBadge = '<span class="badge bg-warning text-dark">💸 Ödeme Çıkışı</span>'; }
+
+            tbody.innerHTML += `
+                <tr>
+                    <td class="fw-bold text-muted small ps-4">${tx.date || '-'}</td>
+                    <td>${typeBadge}</td>
+                    <td class="fw-bold text-dark" style="font-size:0.85rem;">${pName} <br><span class="small text-muted fw-normal">${tx.type.includes('STOK') ? (tx.desc||'') : ''}</span></td>
+                    <td class="text-center">${tx.type.includes('STOK') ? tx.qty : '-'}</td>
+                    <td class="text-primary fw-bold">${lineTotal.toLocaleString('tr-TR', {minimumFractionDigits: 2})} ₺</td>
+                    <td class="fw-bold" style="color:var(--brand-green);">${tx.party || '-'}</td>
+                    <td class="text-end pe-4">
+                        <button class="btn btn-sm btn-outline-primary me-1" onclick="editTransaction('${tx.fbId}')" title="Düzenle"><i class="fas fa-edit"></i></button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteTransaction('${tx.fbId}')" title="Sil"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>`;
+        });
+
+        function getProdName(t) {
+            var pr = productList.find(x => x.id == t.pid);
+            var n = pr ? pr.name : "Silinmiş Ürün";
+            if(t.variant) n += ` <span class="badge bg-light text-dark border">${t.variant}</span>`;
+            return n;
+        }
+
+        // CARİ KART ÖZETİ EKRANA BASMA
+        var summaryHtml = '';
+        for(var key in partySummary) {
+            var s = partySummary[key];
+            if(s.borc === 0 && s.alacak === 0) continue;
+            var bakiye = s.borc - s.alacak;
+            var bakiyeText = bakiye > 0 ? `<span class="text-success fw-bold">Alacağımız Var: +${bakiye.toLocaleString('tr-TR', {minimumFractionDigits: 2})} ₺</span>` 
+                           : (bakiye < 0 ? `<span class="text-danger fw-bold">Borcumuz Var: ${bakiye.toLocaleString('tr-TR', {minimumFractionDigits: 2})} ₺</span>` 
+                           : `<span class="text-muted fw-bold">Bakiye: 0.00 ₺</span>`);
+
+            summaryHtml += `
+                <div class="col-md-6 col-lg-4">
+                    <div class="border rounded bg-white p-2 shadow-sm border-start border-4 ${bakiye >= 0 ? 'border-success' : 'border-danger'}">
+                        <div class="fw-bold text-dark border-bottom pb-1 mb-1 text-truncate" style="font-size:0.85rem;"><i class="fas fa-user-tie text-secondary me-1"></i> ${key}</div>
+                        <div class="d-flex flex-column" style="font-size:0.8rem;">
+                            <div class="d-flex justify-content-between text-muted"><span>Satış & Ödeme (Bize Borcu):</span> <span>${s.borc.toLocaleString('tr-TR', {minimumFractionDigits: 2})} ₺</span></div>
+                            <div class="d-flex justify-content-between text-muted mb-1"><span>Alım & Tahsilat (Bizim Borcumuz):</span> <span>${s.alacak.toLocaleString('tr-TR', {minimumFractionDigits: 2})} ₺</span></div>
+                            <div class="d-flex justify-content-between border-top pt-1 bg-light px-1 rounded"><span>NET DURUM:</span> ${bakiyeText}</div>
+                        </div>
+                    </div>
+                </div>`;
+        }
+        summaryContainer.innerHTML = summaryHtml === '' ? '<div class="col-12 text-muted small text-center py-3">Henüz cari hareket bulunmuyor.</div>' : summaryHtml;
+    };
+
+    
     function confirmSellBasket() {
         var date = document.getElementById('sell_basket_date').value;
         var channel = document.getElementById('sell_basket_channel').value;
