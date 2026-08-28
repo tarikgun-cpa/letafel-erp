@@ -4452,6 +4452,7 @@ function syncVariantTotal() {
         btn.innerHTML = '<i class="fas fa-check-circle me-2"></i> FATURAYI KAYDET VE STOKLARA İŞLE'; btn.disabled = false;
     };
 
+    // 1. İŞLEMLER LİSTESİ (YAZDIR BUTONU EKLENDİ)
     window.renderTxTable = function() {
         var tbody = document.getElementById('txBody'); if(!tbody) return;
         tbody.innerHTML = '';
@@ -4478,6 +4479,7 @@ function syncVariantTotal() {
                 <td class="text-primary fw-bold">${lineTotal.toLocaleString('tr-TR',{minimumFractionDigits:2})} ₺</td>
                 <td class="fw-bold" style="color:var(--brand-green);">${tx.party || '-'}</td>
                 <td class="text-end pe-4">
+                    <button class="btn btn-sm btn-outline-secondary me-1" onclick="printHistoricalInvoice('${tx.fbId}')" title="Faturayı Yazdır"><i class="fas fa-print"></i></button>
                     <button class="btn btn-sm btn-outline-primary me-1" onclick="editTransaction('${tx.fbId}')" title="Düzenle"><i class="fas fa-edit"></i></button>
                     <button class="btn btn-sm btn-outline-danger" onclick="deleteCariTx('${tx.fbId}')" title="Sil"><i class="fas fa-trash"></i></button>
                 </td>
@@ -4491,6 +4493,34 @@ function syncVariantTotal() {
         if(t.variant) n += ` <span class="badge bg-light text-dark border">${t.variant}</span>`;
         return n;
     }
+
+    // 2. SON KAYITLAR LİSTESİ (YAZDIR BUTONU EKLENDİ)
+    window.renderRecentTx = function() {
+        var tbody = document.getElementById('recentTxBody'); if(!tbody) return;
+        var flag = document.getElementById('inv_type_flag').value;
+        var filtered = txList.filter(t => t.type.includes(flag === 'IN' ? 'ALIM' : 'SATIS')).sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0, 10);
+        
+        tbody.innerHTML = '';
+        if(filtered.length === 0) tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Bu ekrandan girilmiş son kayıt yok.</td></tr>';
+        
+        filtered.forEach(t => {
+            var icon = t.type.includes('STOK') ? '<i class="fas fa-box text-secondary"></i>' : '<i class="fas fa-wrench text-info"></i>';
+            var lineTotal = (t.type.includes('STOK') ? (t.qty * t.price) : t.price).toFixed(2);
+            var pName = t.type.includes('STOK') ? (productList.find(x=>x.id==t.pid)?.name || "Ürün") : t.desc;
+            
+            tbody.innerHTML += `<tr>
+                <td class="text-muted ps-3">${t.date}</td>
+                <td class="fw-bold" style="color:var(--brand-green);">${t.party || 'Genel'}</td>
+                <td class="text-truncate" style="max-width:150px;" title="${t.desc}">${icon} ${pName} <small class="text-muted">(${t.qty}x)</small></td>
+                <td class="text-end fw-bold text-primary">${lineTotal} ₺</td>
+                <td class="text-end pe-3">
+                    <button class="btn btn-sm btn-outline-secondary me-1" onclick="printHistoricalInvoice('${t.fbId}')" title="Faturayı Yazdır"><i class="fas fa-print"></i></button>
+                    <button class="btn btn-sm btn-outline-primary me-1" onclick="editTransaction('${t.fbId}')" title="Düzenle"><i class="fas fa-edit"></i></button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteCariTx('${t.fbId}', 'recent')" title="Sil ve İptal Et"><i class="fas fa-trash"></i></button>
+                </td>
+            </tr>`;
+        });
+    };
 
     window.editTransaction = function(fbId) {
         var tx = txList.find(x => x.fbId === fbId);
@@ -4527,7 +4557,7 @@ function syncVariantTotal() {
         invoiceModalInstance.show();
     };
 
-    window.deleteCariTx = async function(fbId) {
+    window.deleteCariTx = async function(fbId, source) {
         if(!confirm("İşlemi iptal edip tamamen silmek istediğinize emin misiniz? (Stokluysa iade edilir)")) return;
         var tx = txList.find(x => x.fbId === fbId);
         if(!tx) return;
@@ -4546,10 +4576,8 @@ function syncVariantTotal() {
             }
             await window.fbDeleteDoc(window.fbDoc(window.db, "transactions", fbId));
             
-            // Eğer Modal açıksa (Ekstreden siliniyorsa) kapatmaya ÇALIŞMA, hata vermesin.
             var extreModalEl = document.getElementById('cariExtreModal');
             if(extreModalEl && extreModalEl.classList.contains('show')) {
-                // Modalı hiç kapatma, direkt içeriği güncelle
                 var partyName = document.getElementById('pay_cari_name').value;
                 await window.fetchFromFirestore();
                 if(partyName) openCariExtre(partyName);
@@ -4560,124 +4588,115 @@ function syncVariantTotal() {
         } catch(e) { alert("Silme Hatası: " + e.message); }
     };
 
-    window.openNewCariModal = function() {
-        var name = prompt("Yeni Cari (Firma / Kişi) adını giriniz:");
-        if(name && name.trim()) {
-            var txObj = { id: Date.now(), type: 'HIZMET_ALIM', date: new Date().toISOString().slice(0,10), pid: null, qty: 1, price: 0, party: name.trim().toUpperCase(), desc: "Açılış Kartı" };
-            if(window.fbAddDoc) window.fbAddDoc(window.fbCollection(window.db, "transactions"), txObj).then(()=>window.fetchFromFirestore());
-        }
-    };
-
-    window.renderCariDashboard = function() {
-        var search = document.getElementById('cariSearch').value.toUpperCase();
-        var cont = document.getElementById('cariCardsContainer'); cont.innerHTML = '';
-        var partySummary = {};
+    // 3. YENİ: GEÇMİŞ FATURALARI TOPLU OLARAK BİRLEŞTİRİP YAZDIRAN FONKSİYON
+    window.printHistoricalInvoice = function(fbId) {
+        var baseTx = txList.find(x => x.fbId === fbId);
+        if(!baseTx) return;
         
-        txList.forEach(t => {
-            if(!t.party) return;
-            var pName = t.party.trim().toUpperCase();
-            if(search && !pName.includes(search)) return;
-            if(!partySummary[pName]) partySummary[pName] = { borc: 0, alacak: 0 };
-            
-            var amt = parseFloat(t.price) || 0;
-            if(t.type.includes('STOK')) amt *= (parseInt(t.qty)||1);
+        var jsPDFObj = window.jspdf ? window.jspdf.jsPDF : (window.jsPDF || null);
+        if (!jsPDFObj) { alert("PDF Kütüphanesi yüklenemedi."); return; }
+        var doc = new jsPDFObj();
 
-            if(t.type === 'STOK_SATIS' || t.type === 'HIZMET_SATIS' || t.type === 'ODEME_YAP') partySummary[pName].borc += amt;
-            if(t.type === 'STOK_ALIM' || t.type === 'HIZMET_ALIM' || t.type === 'TAHSILAT_AL') partySummary[pName].alacak += amt;
+        function toEn(str) { 
+            if(!str) return ''; 
+            var map = {'ç':'c','ğ':'g','ı':'i','ö':'o','ş':'s','ü':'u','Ç':'C','Ğ':'G','İ':'I','Ö':'O','Ş':'S','Ü':'U'}; 
+            return str.replace(/[çğıöşüÇĞİÖŞÜ]/g, m => map[m]); 
+        }
+
+        // Fatura Numarasını Çıkar
+        var fNoMatch = baseTx.desc.match(/Fatura:\s([^|]+)/);
+        var fNo = fNoMatch ? fNoMatch[1].trim() : "Faturasiz_Islem";
+        
+        var invoiceItems = [];
+        if(fNo !== "Faturasiz_Islem") {
+            // Aynı faturaya ait tüm kalemleri topla
+            invoiceItems = txList.filter(t => t.party === baseTx.party && t.date === baseTx.date && t.desc.includes("Fatura: " + fNo));
+        } else {
+            // Faturasız bir işlemse sadece kendisini yazdır
+            invoiceItems = [baseTx];
+        }
+        
+        var isAlim = baseTx.type.includes('ALIM');
+        var baslik = isAlim ? "ALIM FATURASI / STOK GIRISI" : "SATIS FATURASI / STOK CIKISI";
+        var baslikRenk = isAlim ? [46, 125, 50] : [217, 83, 79];
+
+        doc.setFillColor(baslikRenk[0], baslikRenk[1], baslikRenk[2]);
+        doc.rect(0, 0, 210, 30, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(20);
+        doc.text(toEn(baslik), 14, 20);
+
+        var logoSrc = document.getElementById('view_main_logo').src;
+        if(logoSrc && logoSrc.startsWith('data:image')) {
+            doc.addImage(logoSrc, 'PNG', 170, 4, 22, 22);
+        }
+
+        doc.setTextColor(50, 50, 50);
+        doc.setFontSize(12);
+        doc.setFont("times", "bold");
+        doc.text("Cari Hesap: " + toEn(baseTx.party || 'GENEL CARI'), 14, 40);
+        doc.setFont("times", "normal");
+        doc.setFontSize(10);
+        doc.text("Tarih: " + baseTx.date, 14, 46);
+        doc.text("Belge No: " + toEn(fNo), 14, 52);
+
+        var rows = [];
+        var totalTutar = 0;
+
+        invoiceItems.forEach(item => {
+            var nDisp = "";
+            if(item.type.includes('STOK')) {
+                var p = productList.find(x => x.id == item.pid);
+                nDisp = p ? p.name : "Urun";
+            } else {
+                nDisp = item.desc.split(' | ')[1] || "Hizmet";
+            }
+            if(item.variant) nDisp += ` (Varyant: ${item.variant})`;
+            
+            var qty = parseInt(item.qty) || 1;
+            var price = parseFloat(item.price) || 0;
+            var lineTotal = qty * price;
+            totalTutar += lineTotal;
+            
+            var typeStr = item.type.includes('STOK') ? 'Stok' : 'Hizmet';
+            rows.push([typeStr, toEn(nDisp), qty, price.toLocaleString('tr-TR',{minimumFractionDigits:2}) + " TL", lineTotal.toLocaleString('tr-TR',{minimumFractionDigits:2}) + " TL"]);
         });
 
-        for(var key in partySummary) {
-            var s = partySummary[key];
-            var bakiye = s.borc - s.alacak;
-            var bColor = bakiye > 0 ? 'success' : (bakiye < 0 ? 'danger' : 'secondary');
-            var bText = bakiye > 0 ? `Bize Borcu Var: +${bakiye.toLocaleString('tr-TR',{minimumFractionDigits:2})} ₺` : (bakiye < 0 ? `Bizim Borcumuz: ${Math.abs(bakiye).toLocaleString('tr-TR',{minimumFractionDigits:2})} ₺` : `Bakiye: 0.00 ₺`);
-
-            cont.innerHTML += `
-            <div class="col-md-6 col-xl-4">
-                <div class="bg-white p-3 rounded-4 shadow-sm border border-${bColor} border-opacity-50" style="cursor:pointer; transition: 0.2s;" onclick="openCariExtre('${key}')" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
-                    <div class="d-flex align-items-center mb-3 border-bottom pb-2">
-                        <div class="bg-${bColor} bg-opacity-10 p-2 rounded-circle me-3"><i class="fas fa-building text-${bColor} fs-4"></i></div>
-                        <h6 class="fw-bold mb-0 text-dark text-truncate">${key}</h6>
-                    </div>
-                    <div class="d-flex justify-content-between small text-muted mb-1"><span>Satışlarımız:</span> <span>${s.borc.toLocaleString('tr-TR',{minimumFractionDigits:2})} ₺</span></div>
-                    <div class="d-flex justify-content-between small text-muted mb-2"><span>Alımlarımız:</span> <span>${s.alacak.toLocaleString('tr-TR',{minimumFractionDigits:2})} ₺</span></div>
-                    <div class="py-2 px-3 bg-${bColor} bg-opacity-10 text-${bColor} fw-bold rounded text-center" style="font-size:0.9rem;">${bText}</div>
-                    <button class="btn btn-sm btn-outline-secondary w-100 mt-2 fw-bold" onclick="event.stopPropagation(); printCariExtreDirect('${key}')"><i class="fas fa-file-pdf text-danger"></i> Ekstreyi Yazdır</button>
-                </div>
-            </div>`;
-        }
-        if(cont.innerHTML === '') cont.innerHTML = '<div class="col-12 text-muted text-center py-5">Kayıtlı Cari bulunamadı.</div>';
-    };
-
-    window.openCariExtre = function(partyName) {
-        document.getElementById('cariExtreTitle').innerText = partyName + " - Hesap Ekstresi";
-        var tbody = document.getElementById('cariExtreBody'); tbody.innerHTML = '';
-        var borcT = 0, alacakT = 0;
-        
-        var sorted = txList.filter(t => t.party && t.party.toUpperCase() === partyName).sort((a,b) => new Date(b.date) - new Date(a.date));
-        
-        sorted.forEach(t => {
-            var amt = parseFloat(t.price) || 0;
-            if(t.type.includes('STOK')) amt *= (parseInt(t.qty)||1);
-            
-            var tName = "İşlem"; var isBorc = false;
-            if(t.type === 'STOK_SATIS' || t.type === 'HIZMET_SATIS') { tName = '<span class="text-success">Satış Faturası</span>'; isBorc = true; borcT += amt; }
-            else if(t.type === 'STOK_ALIM' || t.type === 'HIZMET_ALIM') { tName = '<span class="text-danger">Alım Faturası</span>'; alacakT += amt; }
-            else if(t.type === 'TAHSILAT_AL') { tName = '<span class="text-success">Tahsilat (+Kasa)</span>'; alacakT += amt; }
-            else if(t.type === 'ODEME_YAP') { tName = '<span class="text-danger">Ödeme (-Kasa)</span>'; isBorc = true; borcT += amt; }
-
-            var descText = t.desc; if(t.type.includes('STOK')) { var pr = productList.find(x=>x.id==t.pid); descText += pr ? `<br><small class="text-muted">(${t.qty}x ${pr.name})</small>` : ''; }
-
-            tbody.innerHTML += `<tr>
-                <td class="small text-muted">${t.date}</td><td>${tName}</td><td><div class="fw-bold" style="font-size:0.85rem;">${descText}</div></td>
-                <td class="text-end fw-bold ${isBorc?'text-success':'text-danger'}">${amt.toLocaleString('tr-TR',{minimumFractionDigits:2})} ₺</td>
-                <td class="text-end"><button class="btn btn-sm btn-outline-danger" onclick="deleteCariTx('${t.fbId}')"><i class="fas fa-trash"></i></button></td>
-            </tr>`;
+        doc.autoTable({ 
+            startY: 60, 
+            head: [['Tur', 'Aciklama / Urun', 'Adet', 'Birim Fiyat', 'Toplam']], 
+            body: rows, 
+            styles: { fontSize: 10, font: "times", cellPadding: 4, overflow: 'linebreak' }, // Uzun ürün adlarını alt satıra atar
+            headStyles: { fillColor: baslikRenk, textColor: 255, fontStyle: "bold" },
+            alternateRowStyles: { fillColor: [250, 250, 248] },
+            columnStyles: {
+                0: { cellWidth: 20 },
+                1: { cellWidth: 90 }, // Açıklama kısmı için geniş alan
+                2: { cellWidth: 20, halign: 'center' }, 
+                3: { cellWidth: 25, halign: 'right' },
+                4: { cellWidth: 27, halign: 'right' }
+            }
         });
 
-        document.getElementById('ce_borc').innerText = borcT.toLocaleString('tr-TR',{minimumFractionDigits:2}) + " ₺";
-        document.getElementById('ce_alacak').innerText = alacakT.toLocaleString('tr-TR',{minimumFractionDigits:2}) + " ₺";
-        var bakiye = borcT - alacakT;
-        var bEl = document.getElementById('ce_bakiye');
-        bEl.innerText = Math.abs(bakiye).toLocaleString('tr-TR',{minimumFractionDigits:2}) + " ₺";
-        bEl.className = bakiye >= 0 ? 'fs-4 fw-bold text-success' : 'fs-4 fw-bold text-danger';
+        var finalY = doc.lastAutoTable.finalY + 10;
+        doc.setFont("times", "bold");
+        doc.setFontSize(14);
+        doc.text("GENEL TOPLAM: " + totalTutar.toLocaleString('tr-TR',{minimumFractionDigits:2}) + " TL", 130, finalY);
 
-        document.getElementById('pay_cari_name').value = partyName;
-        new bootstrap.Modal(document.getElementById('cariExtreModal')).show();
+        doc.save(toEn(baseTx.party || 'Fatura').replace(/\s+/g, '_') + "_Fatura_" + baseTx.date + ".pdf");
     };
 
-    window.openPaymentModal = function(type) {
-        document.getElementById('pay_type').value = type;
-        document.getElementById('pay_date').valueAsDate = new Date();
-        document.getElementById('paymentModalTitle').innerHTML = type === 'TAHSILAT_AL' ? '<i class="fas fa-hand-holding-usd text-success"></i> Tahsilat Alınıyor' : '<i class="fas fa-money-bill-wave text-warning"></i> Ödeme Yapılıyor';
-        document.getElementById('pay_amount').value = ""; document.getElementById('pay_desc').value = "";
-        
-        bootstrap.Modal.getInstance(document.getElementById('cariExtreModal')).hide();
-        new bootstrap.Modal(document.getElementById('paymentModal')).show();
-    };
-
-    window.savePayment = async function() {
-        var amt = parseFloat(document.getElementById('pay_amount').value);
-        if(isNaN(amt) || amt <= 0) { alert("Geçerli bir tutar girin."); return; }
-        
-        var txObj = {
-            id: Date.now(), type: document.getElementById('pay_type').value, date: document.getElementById('pay_date').value,
-            pid: null, qty: 1, price: amt, party: document.getElementById('pay_cari_name').value, desc: document.getElementById('pay_desc').value.trim() || "Finansal İşlem"
-        };
-        try {
-            await window.fbAddDoc(window.fbCollection(window.db, "transactions"), txObj);
-            await window.fetchFromFirestore();
-            bootstrap.Modal.getInstance(document.getElementById('paymentModal')).hide();
-            alert("Ödeme/Tahsilat başarıyla işlendi.");
-            openCariExtre(txObj.party); 
-        } catch(e) { alert("Hata: " + e.message); }
-    };
-
-    // 1-) CARİ EKSTRE PDF YAZDIRMA (ŞIK VE KURUMSAL TASARIM)
+    // 4. CARİ EKSTRE PDF YAZDIRMA (TAŞMALARI DÜZELTİLMİŞ HALİ)
     window.printCariExtreDirect = function(partyName) {
         var jsPDFObj = window.jspdf ? window.jspdf.jsPDF : (window.jsPDF || null);
         if (!jsPDFObj) { alert("PDF Kütüphanesi yüklenemedi."); return; }
         var doc = new jsPDFObj();
+
+        function toEn(str) { 
+            if(!str) return ''; 
+            var map = {'ç':'c','ğ':'g','ı':'i','ö':'o','ş':'s','ü':'u','Ç':'C','Ğ':'G','İ':'I','Ö':'O','Ş':'S','Ü':'U'}; 
+            return str.replace(/[çğıöşüÇĞİÖŞÜ]/g, m => map[m]); 
+        }
         
         doc.setFillColor(10, 61, 50); // var(--brand-green)
         doc.rect(0, 0, 210, 30, 'F');
@@ -4693,14 +4712,14 @@ function syncVariantTotal() {
         doc.setTextColor(50, 50, 50);
         doc.setFontSize(14);
         doc.setFont("times", "bold");
-        doc.text("Firma / Kisi: " + partyName, 14, 40);
+        doc.text("Firma / Kisi: " + toEn(partyName), 14, 40);
         
         doc.setFontSize(10);
         doc.setFont("times", "normal");
         doc.text("Rapor Tarihi: " + new Date().toLocaleDateString('tr-TR'), 14, 46);
         
         var borcT = 0, alacakT = 0;
-        // Ekstreler kronolojik (eskiden yeniye) sıralanır
+        // Eskiden yeniye sıralıyoruz
         var sorted = txList.filter(t => t.party && t.party.toUpperCase() === partyName).sort((a,b) => new Date(a.date) - new Date(b.date)); 
         var rows = [];
 
@@ -4708,14 +4727,20 @@ function syncVariantTotal() {
             var amt = parseFloat(t.price) || 0;
             if(t.type.includes('STOK')) amt *= (parseInt(t.qty)||1);
             
-            var tName = "İşlem"; 
+            var tName = "Islem"; 
             if(t.type === 'STOK_SATIS' || t.type === 'HIZMET_SATIS') { tName = 'Satis Faturasi'; borcT += amt; }
             else if(t.type === 'STOK_ALIM' || t.type === 'HIZMET_ALIM') { tName = 'Alim Faturasi'; alacakT += amt; }
             else if(t.type === 'TAHSILAT_AL') { tName = 'Tahsilat (+Kasa)'; alacakT += amt; }
             else if(t.type === 'ODEME_YAP') { tName = 'Odeme (-Kasa)'; borcT += amt; }
 
-            var descText = t.desc; if(t.type.includes('STOK')) { var pr = productList.find(x=>x.id==t.pid); descText += pr ? ` (${t.qty}x ${pr.name})` : ''; }
-            rows.push([t.date, tName, descText, amt.toLocaleString('tr-TR',{minimumFractionDigits:2}) + " TL"]);
+            var descText = t.desc; 
+            if(t.type.includes('STOK')) { 
+                var pr = productList.find(x=>x.id==t.pid); 
+                descText += pr ? ` (${t.qty}x ${pr.name})` : ''; 
+            }
+            
+            // Satırları İngilizce karaktere çevirerek jsPDF çakışmasını engelliyoruz
+            rows.push([t.date, tName, toEn(descText), amt.toLocaleString('tr-TR',{minimumFractionDigits:2}) + " TL"]);
         });
 
         var bakiye = borcT - alacakT;
@@ -4725,14 +4750,14 @@ function syncVariantTotal() {
             startY: 52, 
             head: [['Tarih', 'Islem Turu', 'Aciklama / Belge', 'Tutar']], 
             body: rows, 
-            styles: { fontSize: 9, font: "times", cellPadding: 3 },
+            styles: { fontSize: 9, font: "times", cellPadding: 4, overflow: 'linebreak' }, // overflow: 'linebreak' ile metin aşağı atar (taşma yapmaz)
             headStyles: { fillColor: [10, 61, 50], textColor: 255, fontStyle: "bold" },
             alternateRowStyles: { fillColor: [250, 250, 248] },
             columnStyles: {
-                0: { cellWidth: 25 },
-                1: { cellWidth: 30 },
-                2: { cellWidth: 'auto' }, // Uzun metinler otomatik alt satıra kırılır
-                3: { cellWidth: 30, halign: 'right' }
+                0: { cellWidth: 22 },
+                1: { cellWidth: 28 },
+                2: { cellWidth: 100 }, // Açıklama sütununa sabit tam sığacak genişlik verdik (Taşmayı önler)
+                3: { cellWidth: 32, halign: 'right' }
             }
         });
 
@@ -4757,77 +4782,7 @@ function syncVariantTotal() {
         if(bakiye >= 0) doc.setTextColor(92, 184, 92); else doc.setTextColor(217, 83, 79);
         doc.text("NET DURUM (" + bColor + "): " + Math.abs(bakiye).toLocaleString('tr-TR',{minimumFractionDigits:2}) + " TL", 20, finalY + 30);
 
-        doc.save(partyName.replace(/\s+/g, '_') + "_Ekstre.pdf");
-    };
-
-    // 2-) YENİ: ALIM / SATIŞ FATURASI PDF YAZDIRMA EKRANI
-    window.printCurrentInvoice = function() {
-        if(invoiceCart.length === 0) { alert("Yazdırılacak kalem bulunmuyor. Önce faturaya ürün ekleyin."); return; }
-        
-        var jsPDFObj = window.jspdf ? window.jspdf.jsPDF : (window.jsPDF || null);
-        if (!jsPDFObj) { alert("PDF Kütüphanesi yüklenemedi."); return; }
-        var doc = new jsPDFObj();
-        
-        var invType = document.getElementById('inv_type_flag').value;
-        var date = document.getElementById('inv_date').value || new Date().toLocaleDateString('tr-TR');
-        var fNo = document.getElementById('inv_no').value.trim() || "Belirtilmedi";
-        var party = document.getElementById('inv_party').value.trim().toUpperCase() || "GENEL CARİ";
-
-        var baslik = invType === 'IN' ? "ALIM FATURASI / STOK GIRISI" : "SATIS FATURASI / STOK CIKISI";
-        var baslikRenk = invType === 'IN' ? [46, 125, 50] : [217, 83, 79]; // Alımsa Yeşil, Satışsa Kırmızı
-
-        doc.setFillColor(baslikRenk[0], baslikRenk[1], baslikRenk[2]);
-        doc.rect(0, 0, 210, 30, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(20);
-        doc.text(baslik, 14, 20);
-
-        var logoSrc = document.getElementById('view_main_logo').src;
-        if(logoSrc && logoSrc.startsWith('data:image')) {
-            doc.addImage(logoSrc, 'PNG', 170, 4, 22, 22);
-        }
-
-        doc.setTextColor(50, 50, 50);
-        doc.setFontSize(12);
-        doc.setFont("times", "bold");
-        doc.text("Cari Hesap: " + party, 14, 40);
-        doc.setFont("times", "normal");
-        doc.setFontSize(10);
-        doc.text("Tarih: " + date, 14, 46);
-        doc.text("Belge No: " + fNo, 14, 52);
-
-        var rows = [];
-        var totalTutar = 0;
-
-        invoiceCart.forEach(item => {
-            var nDisp = item.name + (item.variant ? ` (Varyant: ${item.variant})` : '');
-            var lineTotal = item.qty * item.price;
-            totalTutar += lineTotal;
-            rows.push([item.type, nDisp, item.qty, item.price.toLocaleString('tr-TR',{minimumFractionDigits:2}) + " TL", lineTotal.toLocaleString('tr-TR',{minimumFractionDigits:2}) + " TL"]);
-        });
-
-        doc.autoTable({ 
-            startY: 60, 
-            head: [['Tur', 'Aciklama / Urun', 'Adet', 'Birim Fiyat', 'Toplam']], 
-            body: rows, 
-            styles: { fontSize: 10, font: "times", cellPadding: 3 },
-            headStyles: { fillColor: baslikRenk, textColor: 255, fontStyle: "bold" },
-            alternateRowStyles: { fillColor: [250, 250, 248] },
-            columnStyles: {
-                0: { cellWidth: 20 },
-                1: { cellWidth: 'auto' },
-                2: { cellWidth: 20, halign: 'center' }, 
-                3: { cellWidth: 30, halign: 'right' },
-                4: { cellWidth: 30, halign: 'right' }
-            }
-        });
-
-        var finalY = doc.lastAutoTable.finalY + 10;
-        doc.setFont("times", "bold");
-        doc.setFontSize(14);
-        doc.text("GENEL TOPLAM: " + totalTutar.toLocaleString('tr-TR',{minimumFractionDigits:2}) + " TL", 130, finalY);
-
-        doc.save(party.replace(/\s+/g, '_') + "_Fatura_" + date + ".pdf");
+        doc.save(toEn(partyName).replace(/\s+/g, '_') + "_Ekstre.pdf");
     };
 
 </script>
