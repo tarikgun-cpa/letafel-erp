@@ -360,99 +360,140 @@
 
         <!-- 1 ve 2. SEKME: FATURA GİRİŞ EKRANI (ALIM / SATIŞ ORTAK) -->
         <div id="islem-fatura-view">
-            <div class="row g-4">
-                <div class="col-lg-5">
-                    <div class="card-custom h-100 shadow-sm border-0 d-flex flex-column">
-                        <div class="card-head py-3 px-4" id="inv_header" style="background: var(--brand-green); color: white; border-radius: 12px 12px 0 0;">
-                            <span class="fw-bold"><i class="fas fa-file-invoice"></i> Yeni Fatura / Fiş Oluştur</span>
+            <!-- Üst Bilgiler -->
+            <div class="card-custom shadow-sm mb-3">
+                <div class="card-head py-2 px-4" id="inv_header" style="background: var(--brand-green); color: white; border-radius: 12px 12px 0 0;">
+                    <span class="fw-bold"><i class="fas fa-file-invoice"></i> Yeni Alım Faturası Gir (Stok Girişi)</span>
+                </div>
+                <div class="card-body p-3 bg-light" style="border-radius: 0 0 12px 12px;">
+                    <input type="hidden" id="inv_type_flag" value="IN">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="small fw-bold text-muted mb-1">Fatura Tarihi</label>
+                            <input type="date" id="inv_date" class="form-control shadow-none">
                         </div>
-                        <div class="card-body p-4 bg-light flex-grow-1">
-                            <input type="hidden" id="inv_type_flag" value="IN"> <!-- IN=Alım, OUT=Satış -->
+                        <div class="col-md-3">
+                            <label class="small fw-bold text-muted mb-1">Belge / Fatura No</label>
+                            <input type="text" id="inv_no" class="form-control shadow-none" placeholder="Opsiyonel">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="small fw-bold text-muted mb-1 d-flex justify-content-between">
+                                <span>Cari Hesap (Firma / Müşteri)</span>
+                                <a href="#" onclick="switchIslemTab('cari'); openNewCariModal(); return false;" class="text-primary text-decoration-none"><i class="fas fa-plus"></i> Yeni Cari Aç</a>
+                            </label>
+                            <select id="inv_party" class="form-select fw-bold shadow-none text-uppercase">
+                                <option value="">-- Cari Seçiniz --</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alt Kısım: Form ve Sepet -->
+            <div class="row g-3">
+                <!-- Kalem Ekleme Formu -->
+                <div class="col-lg-4">
+                    <div class="card-custom shadow-sm h-100">
+                        <div class="card-body p-3 bg-white rounded-3">
+                            <h6 class="fw-bold border-bottom pb-2 mb-3 text-secondary"><i class="fas fa-cart-plus text-primary"></i> Faturaya Kalem Ekle</h6>
                             
-                            <div class="row g-2 mb-3">
-                                <div class="col-6"><label class="small fw-bold text-muted">Tarih</label><input type="date" id="inv_date" class="form-control fw-bold shadow-none"></div>
-                                <div class="col-6"><label class="small fw-bold text-muted">Belge / Fatura No</label><input type="text" id="inv_no" class="form-control fw-bold shadow-none" placeholder="Opsiyonel"></div>
-                                <div class="col-12"><label class="small fw-bold text-muted">Cari Hesap (Firma/Kişi)</label><input type="text" id="inv_party" class="form-control fw-bold text-uppercase shadow-none" placeholder="Cari Unvanı Giriniz"></div>
+                            <label class="small fw-bold text-muted mb-1">Kalem Türü</label>
+                            <select id="inv_item_type" class="form-select form-select-sm mb-3 fw-bold bg-light" onchange="toggleInvItemType()">
+                                <option value="STOK">📦 Stoklu Ürün Ekle</option>
+                                <option value="HIZMET">🛠️ Stoksuz Hizmet / Masraf Ekle</option>
+                            </select>
+
+                            <div id="inv_stok_wrapper">
+                                <label class="small fw-bold text-muted mb-1">Ürün Seçimi</label>
+                                <select id="inv_product" class="form-select form-select-sm mb-2 shadow-none" onchange="loadInvVariants()"></select>
+                                <select id="inv_variant" class="form-select form-select-sm mb-3 border-info text-info fw-bold bg-info bg-opacity-10 shadow-none" style="display:none;"></select>
+                            </div>
+                            <div id="inv_hizmet_wrapper" style="display:none;">
+                                <label class="small fw-bold text-muted mb-1">Hizmet/Masraf Açıklaması</label>
+                                <input type="text" id="inv_hizmet_desc" class="form-control form-control-sm mb-3" placeholder="Açıklama giriniz...">
                             </div>
 
-                            <div class="bg-white p-3 rounded-3 border shadow-sm mb-3">
-                                <label class="small fw-bold text-muted mb-1">Kalem Türü</label>
-                                <select id="inv_item_type" class="form-select form-select-sm mb-2 fw-bold" onchange="toggleInvItemType()">
-                                    <option value="STOK">📦 Stoklu Ürün Ekle</option>
-                                    <option value="HIZMET">🛠️ Stoksuz Hizmet / Masraf Ekle</option>
-                                </select>
-
-                                <div id="inv_stok_wrapper">
-                                    <select id="inv_product" class="form-select form-select-sm mb-2 shadow-none" onchange="loadInvVariants()"></select>
-                                    <select id="inv_variant" class="form-select form-select-sm mb-2 border-info text-info fw-bold" style="display:none;"></select>
+                            <div class="row g-2 mb-3">
+                                <div class="col-4">
+                                    <label class="small fw-bold text-muted mb-1">Adet</label>
+                                    <input type="number" id="inv_qty" class="form-control form-control-sm text-center fw-bold bg-light" value="1" min="1">
                                 </div>
-                                <div id="inv_hizmet_wrapper" style="display:none;">
-                                    <input type="text" id="inv_hizmet_desc" class="form-control form-control-sm mb-2" placeholder="Hizmet / Masraf Açıklaması">
-                                </div>
-
-                                <div class="row g-2">
-                                    <div class="col-4"><input type="number" id="inv_qty" class="form-control form-control-sm text-center fw-bold" placeholder="Adet" value="1" min="1"></div>
-                                    <div class="col-8">
-                                        <div class="input-group input-group-sm">
-                                            <input type="number" id="inv_price" class="form-control text-center fw-bold text-primary" placeholder="Birim Fiyat">
-                                            <span class="input-group-text bg-primary text-white border-primary">₺</span>
-                                        </div>
+                                <div class="col-8">
+                                    <label class="small fw-bold text-muted mb-1">Birim Fiyat</label>
+                                    <div class="input-group input-group-sm">
+                                        <input type="number" id="inv_price" class="form-control text-center fw-bold text-primary shadow-none" placeholder="0.00">
+                                        <span class="input-group-text bg-primary text-white border-primary">₺</span>
                                     </div>
                                 </div>
-                                <button class="btn btn-sm btn-outline-primary w-100 fw-bold mt-2" onclick="addInvoiceItem()">+ Faturaya Ekle</button>
                             </div>
-
-                            <button class="btn w-100 fw-bold text-white shadow py-2" id="btnSaveInvoice" style="background-color: var(--brand-green);" onclick="saveBulkInvoice()"><i class="fas fa-save me-1"></i> FATURAYI KAYDET</button>
+                            <button class="btn btn-outline-primary w-100 fw-bold" onclick="addInvoiceItem()"><i class="fas fa-arrow-right"></i> Listeye Ekle</button>
                         </div>
                     </div>
                 </div>
                 
-                <div class="col-lg-7">
-                    <div class="card-custom h-100 shadow-sm border-0 d-flex flex-column">
-                        <div class="card-head py-3 px-4 bg-dark text-white" style="border-radius: 12px 12px 0 0;">
-                            <span class="fw-bold"><i class="fas fa-list-ol"></i> Fatura Kalemleri (Eklenecekler)</span>
-                            <span class="badge bg-warning text-dark fs-6 ms-auto" id="inv_total_disp">Ara Toplam: 0.00 ₺</span>
+                <!-- Fatura Sepeti -->
+                <div class="col-lg-8">
+                    <div class="card-custom shadow-sm h-100 d-flex flex-column">
+                        <div class="card-head py-2 px-3 bg-dark text-white d-flex justify-content-between align-items-center" style="border-radius: 12px 12px 0 0;">
+                            <span class="fw-bold fs-6"><i class="fas fa-list-ol"></i> Eklenecek Fatura Kalemleri</span>
+                            <span class="badge bg-warning text-dark fs-6" id="inv_total_disp">Ara Toplam: 0.00 ₺</span>
                         </div>
-                        <div class="card-body p-0">
-                            <div class="table-responsive" style="height: 35vh; overflow-y: auto;">
+                        <div class="card-body p-0 flex-grow-1">
+                            <div class="table-responsive" style="height: 220px; overflow-y: auto;">
                                 <table class="table table-hover align-middle mb-0">
                                     <thead class="bg-light sticky-top">
                                         <tr>
-                                            <th class="ps-3 small">Tür</th>
-                                            <th class="small">Açıklama / Ürün</th>
-                                            <th class="text-center small">Adet</th>
-                                            <th class="text-end small">Birim F.</th>
-                                            <th class="text-end small">Toplam</th>
-                                            <th class="text-end pe-3 small">Sil</th>
+                                            <th class="ps-3 small text-muted">Tür</th>
+                                            <th class="small text-muted">Açıklama / Ürün</th>
+                                            <th class="text-center small text-muted">Adet</th>
+                                            <th class="text-end small text-muted">Birim F.</th>
+                                            <th class="text-end small text-muted">Toplam</th>
+                                            <th class="text-end pe-3 small text-muted">Sil</th>
                                         </tr>
                                     </thead>
                                     <tbody id="invoiceCartBody">
-                                        <tr><td colspan="6" class="text-center text-muted py-4">Faturaya henüz kalem eklenmedi. Soldaki formdan ürünleri ekleyin.</td></tr>
+                                        <tr><td colspan="6" class="text-center text-muted py-5">Faturaya henüz kalem eklenmedi. Sol taraftan ürünleri ekleyin.</td></tr>
                                     </tbody>
                                 </table>
                             </div>
                         </div>
-                    </div>
-                    
-                    <div class="card-custom mt-4 shadow-sm border-0">
-                        <div class="card-head py-2 px-4 bg-secondary text-white" style="border-radius: 12px 12px 0 0;">
-                            <span class="small fw-bold"><i class="fas fa-history"></i> Son Kaydedilen İşlemler</span>
-                        </div>
-                        <div class="card-body p-0 table-responsive" style="max-height: 25vh;">
-                            <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.8rem;">
-                                <tbody id="recentTxBody"></tbody>
-                            </table>
+                        <div class="card-footer bg-white border-top p-3">
+                            <button class="btn w-100 fw-bold text-white shadow-sm py-2 fs-5" id="btnSaveInvoice" style="background-color: var(--brand-green);" onclick="saveBulkInvoice()"><i class="fas fa-check-circle me-2"></i> FATURAYI KAYDET VE STOKLARA İŞLE</button>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- Son Kaydedilenler -->
+            <div class="card-custom mt-4 shadow-sm">
+                <div class="card-head py-2 px-3 bg-secondary text-white" style="border-radius: 12px 12px 0 0;">
+                    <span class="small fw-bold"><i class="fas fa-history"></i> Bu Ekrandan Kaydedilen Son İşlemler (Düzeltme Yapılabilir)</span>
+                </div>
+                <div class="card-body p-0 table-responsive" style="max-height: 25vh;">
+                    <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.85rem;">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="ps-3 text-muted">Tarih</th>
+                                <th class="text-muted">Cari</th>
+                                <th class="text-muted">Açıklama / Ürün</th>
+                                <th class="text-end text-muted">Tutar</th>
+                                <th class="text-end pe-3 text-muted">İşlem</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentTxBody"></tbody>
+                    </table>
                 </div>
             </div>
         </div>
 
         <!-- 3. SEKME: CARİ HESAPLAR DASHBOARD -->
         <div id="islem-cari-view" style="display:none;">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <input type="text" id="cariSearch" class="form-control w-50 shadow-none border-primary" placeholder="Cari Ara (Firma / Kişi Adı)..." onkeyup="renderCariDashboard()">
-                <button class="btn btn-primary fw-bold px-4 shadow-sm" onclick="openNewCariModal()"><i class="fas fa-user-plus me-1"></i> Yeni Cari Kartı</button>
+            <div class="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded shadow-sm border">
+                <div class="input-group w-50">
+                    <span class="input-group-text bg-light border-primary"><i class="fas fa-search text-primary"></i></span>
+                    <input type="text" id="cariSearch" class="form-control shadow-none border-primary" placeholder="Cari Ara (Firma / Kişi Adı)..." onkeyup="renderCariDashboard()">
+                </div>
+                <button class="btn btn-primary fw-bold px-4 shadow-sm" onclick="openNewCariModal()"><i class="fas fa-user-plus me-2"></i> Yeni Cari Kartı</button>
             </div>
             <div class="row g-3" id="cariCardsContainer"></div>
         </div>
@@ -997,6 +1038,8 @@
     </div>
   </div>
 </div>
+
+<!-- 1. KATALOĞA ÜRÜN EKLE MODALI -->
 <div class="modal fade" id="catalogAddProductModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content border-0 shadow-lg">
@@ -1006,17 +1049,23 @@
       </div>
       <div class="modal-body bg-light">
           <p class="small text-muted">Aşağıdan ürününüzü ve katalogda hangi fiyatın (E-ticaret veya Mağaza) görünmesini istediğinizi seçin.</p>
-          
           <label class="small fw-bold text-secondary mb-1">Ürün Seçimi</label>
           <select id="cat_stock_product" class="form-select mb-3 fw-bold"></select>
-          
           <label class="small fw-bold text-secondary mb-1">Katalog Fiyat Tipi</label>
           <select id="cat_price_type" class="form-select mb-3 border-success text-success fw-bold">
               <option value="ECOM">💻 E-Ticaret Fiyatını Kullan</option>
               <option value="STORE">🏬 Mağaza Fiyatını Kullan</option>
           </select>
       </div>
-      <!-- CARİ HAREKETLER (EKSTRE) MODALI -->
+      <div class="modal-footer bg-white border-top">
+        <button type="button" class="btn btn-light fw-bold" data-bs-dismiss="modal">İptal</button>
+        <button type="button" class="btn btn-success fw-bold px-4" style="background-color: var(--brand-green); border-color: var(--brand-green);" onclick="confirmAddProductToCatalog()">Kataloğa Ekle</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 2. CARİ HAREKETLER (EKSTRE) MODALI -->
 <div class="modal fade" id="cariExtreModal" tabindex="-1">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content border-0 shadow-lg">
@@ -1047,7 +1096,7 @@
   </div>
 </div>
 
-<!-- CARİ ÖDEME/TAHSİLAT GİRİŞ MODALI -->
+<!-- 3. CARİ ÖDEME/TAHSİLAT GİRİŞ MODALI -->
 <div class="modal fade" id="paymentModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content border-0 shadow">
@@ -1067,13 +1116,7 @@
     </div>
   </div>
 </div>
-      <div class="modal-footer bg-white border-top">
-        <button type="button" class="btn btn-light fw-bold" data-bs-dismiss="modal">İptal</button>
-        <button type="button" class="btn btn-success fw-bold px-4" style="background-color: var(--brand-green); border-color: var(--brand-green);" onclick="confirmAddProductToCatalog()">Kataloğa Ekle</button>
-      </div>
-    </div>
-  </div>
-</div>
+
 <script>
     // Sistem Değişkenleri
     var DB_NAME = 'letafel_erp_v30';
@@ -4365,6 +4408,87 @@ function syncVariantTotal() {
         if(missingItems) alert("Uyarı: Bu paketin içindeki bazı ürünler stoklardan silinmiş!");
         renderBasket();
         getBasketModal().show();
+    };
+
+    // CARİ AÇILIR LİSTEYİ (DROPDOWN) DOLDURAN FONKSİYON
+    window.updateCariSelect = function() {
+        var cariSelect = document.getElementById('inv_party');
+        if(!cariSelect) return;
+        var currentVal = cariSelect.value;
+        cariSelect.innerHTML = '<option value="">-- Genel Cari (İsimsiz) --</option>';
+        
+        // İşlemlerden benzersiz Cari İsimlerini Çıkar
+        var uniqueCaris = [...new Set(txList.filter(t => t.party).map(t => t.party.trim().toUpperCase()))];
+        uniqueCaris.forEach(c => {
+            cariSelect.innerHTML += `<option value="${c}">${c}</option>`;
+        });
+        cariSelect.value = currentVal; // Eski seçimi koru
+    };
+
+    // SEKMELER ARASI GEÇİŞ
+    window.switchIslemTab = function(tab) {
+        document.getElementById('islem-fatura-view').style.display = (tab === 'cari') ? 'none' : 'block';
+        document.getElementById('islem-cari-view').style.display = (tab === 'cari') ? 'block' : 'none';
+        
+        ['alim', 'satis', 'cari'].forEach(t => {
+            document.getElementById('tab-' + t + '-link').classList.remove('active', 'bg-light');
+            document.getElementById('tab-' + t + '-link').style.background = 'transparent';
+        });
+
+        var activeLink = document.getElementById('tab-' + tab + '-link');
+        activeLink.classList.add('active');
+        
+        if(tab === 'alim') {
+            document.getElementById('inv_type_flag').value = 'IN';
+            document.getElementById('inv_header').style.background = 'var(--brand-green)';
+            document.getElementById('inv_header').innerHTML = '<span class="fw-bold"><i class="fas fa-arrow-down"></i> Yeni Alım Faturası (Stok Girişi)</span>';
+            activeLink.style.background = '#eaf8ea';
+        } else if(tab === 'satis') {
+            document.getElementById('inv_type_flag').value = 'OUT';
+            document.getElementById('inv_header').style.background = '#d9534f';
+            document.getElementById('inv_header').innerHTML = '<span class="fw-bold"><i class="fas fa-arrow-up"></i> Yeni Satış Faturası (Stok Çıkışı)</span>';
+            activeLink.style.background = '#fdf2f3';
+        } else {
+            activeLink.style.background = '#f0f8ff';
+            renderCariDashboard();
+        }
+        renderRecentTx();
+    };
+
+    window.renderRecentTx = function() {
+        var tbody = document.getElementById('recentTxBody'); if(!tbody) return;
+        var flag = document.getElementById('inv_type_flag').value;
+        var filtered = txList.filter(t => t.type.includes(flag === 'IN' ? 'ALIM' : 'SATIS')).sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0, 10);
+        
+        tbody.innerHTML = '';
+        if(filtered.length === 0) tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Bu ekrandan girilmiş son kayıt yok.</td></tr>';
+        
+        filtered.forEach(t => {
+            var icon = t.type.includes('STOK') ? '<i class="fas fa-box text-secondary"></i>' : '<i class="fas fa-wrench text-info"></i>';
+            var lineTotal = (t.type.includes('STOK') ? (t.qty * t.price) : t.price).toFixed(2);
+            var pName = t.type.includes('STOK') ? (productList.find(x=>x.id==t.pid)?.name || "Ürün") : t.desc;
+            
+            tbody.innerHTML += `<tr>
+                <td class="text-muted ps-3">${t.date}</td>
+                <td class="fw-bold" style="color:var(--brand-green);">${t.party || 'Genel'}</td>
+                <td class="text-truncate" style="max-width:150px;" title="${t.desc}">${icon} ${pName} <small class="text-muted">(${t.qty}x)</small></td>
+                <td class="text-end fw-bold text-primary">${lineTotal} ₺</td>
+                <td class="text-end pe-3"><button class="btn btn-sm btn-outline-danger" onclick="deleteCariTx('${t.fbId}')" title="Sil ve İptal Et"><i class="fas fa-trash"></i></button></td>
+            </tr>`;
+        });
+    };
+
+    // Sistemi ilk açılışta ve veri çekildiğinde çağırdığımız yerler
+    window.updateSelects = function() {
+        try {
+            var selects = [document.getElementById('inv_product'), document.getElementById('cat_stock_product')];
+            selects.forEach(s => {
+                if(!s) return;
+                s.innerHTML = '<option value="">-- Ürün Seçiniz --</option>'; 
+                productList.forEach(p => { s.innerHTML += `<option value="${p.id}">${p.name} (Mevcut: ${p.qty || 0})</option>`; });
+            });
+            if(window.updateCariSelect) window.updateCariSelect();
+        } catch(e) {}
     };
 
     // Penceredeki "Buluta Kaydet" butonuna basınca
