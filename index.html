@@ -287,31 +287,44 @@
                     </div>
                 </div>
             </div>
+            
             <div class="col-md-4">
-                <div class="card-custom border-danger h-100">
-                    <div class="card-head bg-danger text-white"><i class="fas fa-file-invoice-dollar me-2"></i> Aylık Sabit / Diğer Giderler</div>
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center mb-2 bg-light rounded px-2 py-1 border">
-                            <button class="btn btn-sm text-danger fw-bold fs-5" onclick="changeDashboardYear(-1)">&laquo;</button>
-                            <span class="fw-bold text-dark fs-6" id="dashboard_year_label">2026</span>
-                            <button class="btn btn-sm text-danger fw-bold fs-5" onclick="changeDashboardYear(1)">&raquo;</button>
-                        </div>
-                        <select id="expense_month" class="form-select mb-2 fw-bold" onchange="renderExpenseList()"></select>
-                        <input type="text" id="expense_desc" class="form-control mb-2 form-control-sm" placeholder="Gider Açıklaması (Kira, Personel vb.)">
-                        <div class="input-group input-group-sm mb-3">
-                            <span class="input-group-text bg-light text-dark fw-bold">Tutar:</span>
-                            <input type="number" id="expense_amount" class="form-control text-danger fw-bold" placeholder="0.00">
-                            <span class="input-group-text bg-danger text-white">₺</span>
-                        </div>
-                        <button class="btn btn-danger w-100 fw-bold btn-sm" onclick="saveMonthlyExpense()">Gideri Kaydet</button>
+                <div class="card-custom border border-danger border-opacity-25 shadow-sm h-100 d-flex flex-column">
+                    <div class="card-head bg-danger text-white py-2 px-3" style="border-radius: 12px 12px 0 0;">
+                        <i class="fas fa-file-invoice-dollar me-2"></i> Finansal Gider Yönetimi
+                    </div>
+                    <div class="card-body bg-light d-flex flex-column" style="border-radius: 0 0 12px 12px; gap: 1rem;">
                         
-                        <div id="expense_list_container" class="mt-3 border-top pt-2" style="max-height: 120px; overflow-y: auto;">
+                        <!-- Gider Giriş Formu -->
+                        <div class="bg-white p-3 rounded-3 shadow-sm border border-danger border-opacity-10">
+                            <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                                <button class="btn btn-sm btn-outline-danger border-0 fw-bold fs-5 px-2 py-0" onclick="changeDashboardYear(-1)">&laquo;</button>
+                                <span class="fw-bold text-dark" id="dashboard_year_label" style="font-size: 1.1rem;">2026</span>
+                                <button class="btn btn-sm btn-outline-danger border-0 fw-bold fs-5 px-2 py-0" onclick="changeDashboardYear(1)">&raquo;</button>
                             </div>
+                            
+                            <label class="small fw-bold text-muted mb-1">İşlem Ayı Seçin</label>
+                            <select id="expense_month" class="form-select form-select-sm mb-3 shadow-none border-danger text-danger fw-bold bg-danger bg-opacity-10" onchange="renderExpenseList()"></select>
+                            
+                            <label class="small fw-bold text-muted mb-1">Gider Kalemi & Tutar</label>
+                            <input type="text" id="expense_desc" class="form-control form-control-sm mb-2 shadow-none" placeholder="Örn: Kira, Maaş, Elektrik Faturası vb.">
+                            <div class="input-group input-group-sm mb-3">
+                                <input type="number" id="expense_amount" class="form-control fw-bold text-danger shadow-none" placeholder="0.00">
+                                <span class="input-group-text bg-danger text-white border-danger fw-bold">₺</span>
+                            </div>
+                            <button class="btn btn-danger w-100 fw-bold btn-sm shadow-sm" onclick="saveMonthlyExpense()"><i class="fas fa-plus-circle me-1"></i> Gidere İşle</button>
+                        </div>
+                        
+                        <!-- Listeleme Alanı -->
+                        <div class="bg-white p-2 rounded-3 shadow-sm border border-danger border-opacity-10 flex-grow-1 d-flex flex-column">
+                            <div class="small fw-bold text-secondary mb-2 border-bottom pb-1"><i class="fas fa-list-ul me-1"></i> Bu Aya Ait Giderler</div>
+                            <div id="expense_list_container" class="flex-grow-1" style="max-height: 180px; overflow-y: auto;"></div>
+                        </div>
+
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
+
     <div id="mod-stok" class="app-module active">
         <div class="card-custom">
             <div class="card-head">
@@ -4110,6 +4123,20 @@ function syncVariantTotal() {
     var rawExpenses = localStorage.getItem('monthlyExpenses');
     window.monthlyExpenses = rawExpenses ? JSON.parse(rawExpenses) : {};
 
+    
+    window.saveMonthlyExpense = function() {
+        var m = document.getElementById('expense_month').value;
+        var desc = document.getElementById('expense_desc').value.trim() || "Diğer Gider";
+        var amt = parseFloat(document.getElementById('expense_amount').value) || 0;
+        if(!m) { alert("Lütfen ay seçin."); return; }
+        if(amt <= 0) { alert("Geçerli bir gider girin."); return; }
+        if(!window.monthlyExpenses[m]) window.monthlyExpenses[m] = [];
+        window.monthlyExpenses[m].push({ id: Date.now(), desc: desc, amt: amt });
+        localStorage.setItem('monthlyExpenses', JSON.stringify(window.monthlyExpenses));
+        document.getElementById('expense_desc').value = ""; document.getElementById('expense_amount').value = "";
+        window.renderDashboard(); window.syncExpensesToCloud(); 
+    };
+
     window.renderDashboard = function() {
         var totalProds = productList.length;
         var totalStock = 0; var totalStockValue = 0;
@@ -4143,7 +4170,7 @@ function syncVariantTotal() {
             if(!monthlyData[mKey]) monthlyData[mKey] = { itemsSold: 0, revGross: 0, costGross: 0, kdvOut: 0, kdvIn: 0 };
         }
 
-        // KDV'li ve KDV'siz Ciro / Maliyet Hesaplamaları (GÜNCELLENDİ)
+        // KDV'li ve KDV'siz Ciro / DİNAMİK MALİYET Hesaplamaları
         txList.forEach(tx => {
             if(tx.type === 'STOK_SATIS' || tx.type === 'HIZMET_SATIS' || tx.type === 'OUT') { 
                 var dateObj = new Date(tx.date);
@@ -4158,8 +4185,19 @@ function syncVariantTotal() {
                 
                 if(tx.type === 'STOK_SATIS' || tx.type === 'OUT') {
                     var p = productList.find(x => x.id == tx.pid);
-                    var unitCostGross = p ? (parseFloat(p.buy) || 0) : 0; 
                     taxRate = p ? (parseFloat(p.tax) || 20) : 20;
+                    
+                    // 1. ADIM: Satış tarihinden önceki en son "Alım Faturası" (IN) kaydını bul.
+                    var recentPurchase = txList.filter(t => (t.type === 'STOK_ALIM' || t.type === 'IN') && t.pid == tx.pid && new Date(t.date) <= dateObj)
+                                               .sort((a,b) => new Date(b.date) - new Date(a.date))[0];
+                    
+                    var unitCostGross = 0;
+                    if(recentPurchase && parseFloat(recentPurchase.price) > 0) {
+                        unitCostGross = parseFloat(recentPurchase.price); // Eğer alım faturası varsa oradan çek
+                    } else if (p && parseFloat(p.buy) > 0) {
+                        unitCostGross = parseFloat(p.buy); // Eğer fatura yoksa envanter kartındaki birim fiyattan (başlangıç stoğundan) çek
+                    }
+                    
                     lineCostGross = qty * unitCostGross;
                 }
 
@@ -4220,19 +4258,6 @@ function syncVariantTotal() {
         renderExpenseList(); 
     };
 
-    window.saveMonthlyExpense = function() {
-        var m = document.getElementById('expense_month').value;
-        var desc = document.getElementById('expense_desc').value.trim() || "Diğer Gider";
-        var amt = parseFloat(document.getElementById('expense_amount').value) || 0;
-        if(!m) { alert("Lütfen ay seçin."); return; }
-        if(amt <= 0) { alert("Geçerli bir gider girin."); return; }
-        if(!window.monthlyExpenses[m]) window.monthlyExpenses[m] = [];
-        window.monthlyExpenses[m].push({ id: Date.now(), desc: desc, amt: amt });
-        localStorage.setItem('monthlyExpenses', JSON.stringify(window.monthlyExpenses));
-        document.getElementById('expense_desc').value = ""; document.getElementById('expense_amount').value = "";
-        window.renderDashboard(); window.syncExpensesToCloud(); 
-    };
-
     window.renderExpenseList = function() {
         var m = document.getElementById('expense_month').value;
         var container = document.getElementById('expense_list_container');
@@ -4240,10 +4265,16 @@ function syncVariantTotal() {
         container.innerHTML = "";
         if(m && window.monthlyExpenses[m] && window.monthlyExpenses[m].length > 0) {
             window.monthlyExpenses[m].forEach(function(exp, index) {
-                container.innerHTML += `<div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom border-danger"><div class="small fw-bold text-secondary text-truncate" style="max-width: 65%;">${exp.desc}</div><div class="small text-danger fw-bold">${exp.amt.toLocaleString('tr-TR', {minimumFractionDigits: 2})} ₺ <i class="fas fa-times ms-2 text-muted" style="cursor:pointer;" onclick="deleteExpense('${m}', ${index})"></i></div></div>`;
+                container.innerHTML += `
+                    <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded border border-danger border-opacity-25">
+                        <div class="small fw-bold text-dark text-truncate" style="max-width: 65%;"><i class="fas fa-arrow-right text-danger me-1" style="font-size:0.7rem;"></i> ${exp.desc}</div>
+                        <div class="small text-danger fw-bold">${exp.amt.toLocaleString('tr-TR', {minimumFractionDigits: 2})} ₺ 
+                            <button class="btn btn-sm btn-link text-muted p-0 ms-1" onclick="deleteExpense('${m}', ${index})"><i class="fas fa-trash-alt text-danger"></i></button>
+                        </div>
+                    </div>`;
             });
         } else {
-            container.innerHTML = '<div class="small text-muted text-center py-2">Bu ay için kayıtlı ek gider yok.</div>';
+            container.innerHTML = '<div class="small text-muted text-center py-3" style="font-style:italic;">Bu ay için kayıtlı gider yok.</div>';
         }
     };
 
